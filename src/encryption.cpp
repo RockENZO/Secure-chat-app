@@ -54,4 +54,4 @@ std::string Encryption::encryptAES(const std::string& key, const std::string& me
 
     EVP_CIPHER_CTX_free(ctx);
     std::string encryptedMessage(reinterpret_cast<char*>(ciphertext), outLen1);
-    delete
+    delete[] ciphertext;

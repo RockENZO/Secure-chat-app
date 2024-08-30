@@ -1,13 +1,18 @@
 #include "message.h"
 
-Message::Message(const std::string& type, const nlohmann::json& data)
+Message::Message(const std::string& type, const rapidjson::Document& data)
     : type(type), data(data) {}
 
 std::string Message::toJson() const {
-    nlohmann::json msg;
-    msg["type"] = type;
-    msg["data"] = data;
-    return msg.dump();
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    writer.StartObject();
+    writer.String("type");
+    writer.String(type.c_str());
+    writer.String("data");
+    data.Accept(writer);
+    writer.EndObject();
+    return buffer.GetString();
 }
 
 std::string Message::getType() const {

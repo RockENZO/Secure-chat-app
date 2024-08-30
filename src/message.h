@@ -1,14 +1,16 @@
 #pragma once
 #include <string>
-#include <nlohmann/json.hpp>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 class Message {
 public:
-    Message(const std::string& type, const nlohmann::json& data);
+    Message(const std::string& type, const rapidjson::Document& data);
     std::string toJson() const;
     std::string getType() const;
 
 private:
     std::string type;
-    nlohmann::json data;
+    rapidjson::Document data;
 };

@@ -17,8 +17,8 @@ set(SOURCES
 
 # Find and include dependencies
 find_package(OpenSSL REQUIRED)
-find_package(nlohmann_json REQUIRED)
+find_package(jsoncpp REQUIRED)
 
 # Link libraries
 add_executable(DistributedChat ${SOURCES})
-target_link_libraries(DistributedChat OpenSSL::SSL OpenSSL::Crypto nlohmann_json::nlohmann_json)
+target_link_libraries(DistributedChat OpenSSL::SSL OpenSSL::Crypto jsoncpp_lib)

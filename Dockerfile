@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libjsoncpp-dev \
     rapidjson-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
@@ -24,11 +25,14 @@ COPY . /app
 RUN mkdir build
 WORKDIR /app/build
 
+# Default command to run a shell
+CMD ["/bin/bash"]
+
 # Run cmake to configure the build environment
-RUN cmake ..    
+# RUN cmake ..    
 
 # Build the project
-RUN make
+# RUN make
 
 # Specify the command to run the executable
-CMD ["./DistributedChat"]
+# CMD ["./DistributedChat"]

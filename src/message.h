@@ -6,9 +6,10 @@
 
 class Message {
 public:
-    Message(const std::string& type, const rapidjson::Document& data);
+    Message(const std::string& type, const rapidjson::Document data);
     std::string toJson() const;
     std::string getType() const;
+    const rapidjson::Document& getData() const;
 
 private:
     std::string type;

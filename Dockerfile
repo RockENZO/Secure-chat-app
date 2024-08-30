@@ -1,6 +1,9 @@
 # Use an official Ubuntu image as a parent image
 FROM ubuntu:20.04
 
+# Set the environment variable DEBIAN_FRONTEND to noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -8,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libssl-dev \
     libjsoncpp-dev \
+    rapidjson-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
@@ -21,7 +25,7 @@ RUN mkdir build
 WORKDIR /app/build
 
 # Run cmake to configure the build environment
-RUN cmake ..
+RUN cmake ..    
 
 # Build the project
 RUN make

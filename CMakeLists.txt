@@ -4,7 +4,7 @@ project(DistributedChat)
 set(CMAKE_CXX_STANDARD 17)
 
 # Include directories
-include_directories(${PROJECT_SOURCE_DIR}/dependencies)
+include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # Add source files
 set(SOURCES

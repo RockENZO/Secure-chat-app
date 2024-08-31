@@ -1,8 +1,5 @@
 # OLAF/Neighbourhood protocol modified
 
-
-# WARNING: THIS IS NOT A COMPLETE SPECIFICATION YET! DO NOT IMPLEMENT!
-
 ## Definitions
 - **User** A user has a key pair. Each user connects to one server at a time.
 - **Server** A server receives messages from clients and relays them towards the destination.

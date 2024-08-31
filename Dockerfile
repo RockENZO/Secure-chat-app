@@ -21,8 +21,8 @@ WORKDIR /app
 COPY . /app
 
 # Create a build directory
-RUN mkdir build
-WORKDIR /app/build
+# RUN mkdir build
+# WORKDIR /app/build
 
 # Default command to run a shell
 CMD ["/bin/bash"]

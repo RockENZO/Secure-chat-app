@@ -1,0 +1,3 @@
+/workspaces/Secure-chat-app/build/CMakeFiles/rebuild_cache.dir
+/workspaces/Secure-chat-app/build/CMakeFiles/edit_cache.dir
+/workspaces/Secure-chat-app/build/CMakeFiles/DistributedChat.dir

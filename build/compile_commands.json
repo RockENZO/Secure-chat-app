@@ -1,0 +1,27 @@
+[
+{
+  "directory": "/workspaces/Secure-chat-app/build",
+  "command": "/usr/bin/g++   -I/workspaces/Secure-chat-app/src -I/workspaces/Secure-chat-app/rapidjson/include -isystem /usr/include/jsoncpp  -g   -std=gnu++17 -o CMakeFiles/DistributedChat.dir/src/main.cpp.o -c /workspaces/Secure-chat-app/src/main.cpp",
+  "file": "/workspaces/Secure-chat-app/src/main.cpp"
+},
+{
+  "directory": "/workspaces/Secure-chat-app/build",
+  "command": "/usr/bin/g++   -I/workspaces/Secure-chat-app/src -I/workspaces/Secure-chat-app/rapidjson/include -isystem /usr/include/jsoncpp  -g   -std=gnu++17 -o CMakeFiles/DistributedChat.dir/src/server.cpp.o -c /workspaces/Secure-chat-app/src/server.cpp",
+  "file": "/workspaces/Secure-chat-app/src/server.cpp"
+},
+{
+  "directory": "/workspaces/Secure-chat-app/build",
+  "command": "/usr/bin/g++   -I/workspaces/Secure-chat-app/src -I/workspaces/Secure-chat-app/rapidjson/include -isystem /usr/include/jsoncpp  -g   -std=gnu++17 -o CMakeFiles/DistributedChat.dir/src/client.cpp.o -c /workspaces/Secure-chat-app/src/client.cpp",
+  "file": "/workspaces/Secure-chat-app/src/client.cpp"
+},
+{
+  "directory": "/workspaces/Secure-chat-app/build",
+  "command": "/usr/bin/g++   -I/workspaces/Secure-chat-app/src -I/workspaces/Secure-chat-app/rapidjson/include -isystem /usr/include/jsoncpp  -g   -std=gnu++17 -o CMakeFiles/DistributedChat.dir/src/message.cpp.o -c /workspaces/Secure-chat-app/src/message.cpp",
+  "file": "/workspaces/Secure-chat-app/src/message.cpp"
+},
+{
+  "directory": "/workspaces/Secure-chat-app/build",
+  "command": "/usr/bin/g++   -I/workspaces/Secure-chat-app/src -I/workspaces/Secure-chat-app/rapidjson/include -isystem /usr/include/jsoncpp  -g   -std=gnu++17 -o CMakeFiles/DistributedChat.dir/src/encryption.cpp.o -c /workspaces/Secure-chat-app/src/encryption.cpp",
+  "file": "/workspaces/Secure-chat-app/src/encryption.cpp"
+}
+]

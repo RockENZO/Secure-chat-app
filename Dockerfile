@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libssl-dev \
     libjsoncpp-dev \
-    rapidjson-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
 

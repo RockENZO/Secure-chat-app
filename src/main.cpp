@@ -9,6 +9,11 @@
 void runServer(const std::string& address) {
     Server server(address);
     server.start();
+
+    while (true) {
+        Message message = server.receiveMessage();
+        server.handleMessage(message);
+    }
 }
 
 void runClient(const std::string& publicKey, const std::string& privateKey, const std::string& serverAddress) {
@@ -17,21 +22,24 @@ void runClient(const std::string& publicKey, const std::string& privateKey, cons
 
     std::string input;
     while (true) {
-        std::cout << "Enter message (type 'exit' to quit): ";
+        std::cout << "Enter message or type 'sendfile <path>' to send a file (type 'exit' to quit): ";
         std::getline(std::cin, input);
 
         if (input == "exit") {
             break;
-        }
+        } else if (input.rfind("sendfile ", 0) == 0) {
+            std::string filePath = input.substr(9);
+            client.sendFile(filePath, serverAddress);
+        } else {
+            // Encrypt the message before sending
+            std::string encryptedMessage = Encryption::encryptAES("my_secret_key", input);
+            Message message("chat", {
+                {"destination_servers", {serverAddress}},
+                {"chat", encryptedMessage}
+            });
 
-        // Encrypt the message before sending
-        std::string encryptedMessage = Encryption::encryptAES("my_secret_key", input);
-        Message message("chat", {
-            {"destination_servers", {serverAddress}},
-            {"chat", encryptedMessage}
-        });
-        
-        client.sendMessage(message);
+            client.sendMessage(message);
+        }
     }
 }
 

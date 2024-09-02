@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libjsoncpp-dev \
     git \
+    libwebsocketpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install websocketpp
@@ -38,7 +39,7 @@ WORKDIR /app/build
 RUN cmake ..
     
 # Build the project
-RUN make
+# RUN make
 
 # Specify the command to run the executable
-CMD ["./DistributedChat"]
+# CMD ["./DistributedChat"]

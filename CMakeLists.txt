@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/src)
-include_directories(${PROJECT_SOURCE_DIR}/rapidjson/include)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 # Add source files
 set(SOURCES

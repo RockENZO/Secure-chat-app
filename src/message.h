@@ -1,9 +1,9 @@
 #pragma once
 #include <string>
 #include <map>
-#include "../external/rapidjson/include/rapidjson/document.h"
-#include "../external/rapidjson/include/rapidjson/writer.h"
-#include "../external/rapidjson/include/rapidjson/stringbuffer.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 class Message {
 public:

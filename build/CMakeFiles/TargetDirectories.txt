@@ -1,0 +1,8 @@
+/Users/admin/Desktop/chatapp/build/CMakeFiles/edit_cache.dir
+/Users/admin/Desktop/chatapp/build/CMakeFiles/rebuild_cache.dir
+/Users/admin/Desktop/chatapp/build/server/CMakeFiles/server.dir
+/Users/admin/Desktop/chatapp/build/server/CMakeFiles/edit_cache.dir
+/Users/admin/Desktop/chatapp/build/server/CMakeFiles/rebuild_cache.dir
+/Users/admin/Desktop/chatapp/build/client/CMakeFiles/client.dir
+/Users/admin/Desktop/chatapp/build/client/CMakeFiles/edit_cache.dir
+/Users/admin/Desktop/chatapp/build/client/CMakeFiles/rebuild_cache.dir

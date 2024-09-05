@@ -1,5 +1,5 @@
 client/CMakeFiles/client.dir/client.cpp.o: \
-  /Users/admin/Desktop/chatapp/client/client.cpp \
+  /Users/admin/Desktop/Secure-chat-app/client/client.cpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/iostream \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/__assert \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/__assertion_handler \

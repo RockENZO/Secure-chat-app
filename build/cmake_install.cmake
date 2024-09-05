@@ -1,4 +1,4 @@
-# Install script for directory: /Users/admin/Desktop/chatapp
+# Install script for directory: /Users/admin/Desktop/Secure-chat-app
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,8 +39,8 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/Users/admin/Desktop/chatapp/build/server/cmake_install.cmake")
-  include("/Users/admin/Desktop/chatapp/build/client/cmake_install.cmake")
+  include("/Users/admin/Desktop/Secure-chat-app/build/server/cmake_install.cmake")
+  include("/Users/admin/Desktop/Secure-chat-app/build/client/cmake_install.cmake")
 
 endif()
 
@@ -59,6 +59,6 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-  file(WRITE "/Users/admin/Desktop/chatapp/build/${CMAKE_INSTALL_MANIFEST}"
+  file(WRITE "/Users/admin/Desktop/Secure-chat-app/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

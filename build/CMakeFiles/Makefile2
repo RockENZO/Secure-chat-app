@@ -54,10 +54,10 @@ RM = /opt/homebrew/Cellar/cmake/3.30.3/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/admin/Desktop/chatapp
+CMAKE_SOURCE_DIR = /Users/admin/Desktop/Secure-chat-app
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/admin/Desktop/chatapp/build
+CMAKE_BINARY_DIR = /Users/admin/Desktop/Secure-chat-app/build
 
 #=============================================================================
 # Directory level rules for the build root directory
@@ -114,14 +114,14 @@ server/clean: server/CMakeFiles/server.dir/clean
 server/CMakeFiles/server.dir/all:
 	$(MAKE) $(MAKESILENT) -f server/CMakeFiles/server.dir/build.make server/CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f server/CMakeFiles/server.dir/build.make server/CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/admin/Desktop/chatapp/build/CMakeFiles --progress-num=3,4 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/admin/Desktop/Secure-chat-app/build/CMakeFiles --progress-num=3,4 "Built target server"
 .PHONY : server/CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
 server/CMakeFiles/server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/chatapp/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/Secure-chat-app/build/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 server/CMakeFiles/server.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/chatapp/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/Secure-chat-app/build/CMakeFiles 0
 .PHONY : server/CMakeFiles/server.dir/rule
 
 # Convenience name for target.
@@ -140,14 +140,14 @@ server/CMakeFiles/server.dir/clean:
 client/CMakeFiles/client.dir/all:
 	$(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/depend
 	$(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/admin/Desktop/chatapp/build/CMakeFiles --progress-num=1,2 "Built target client"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/admin/Desktop/Secure-chat-app/build/CMakeFiles --progress-num=1,2 "Built target client"
 .PHONY : client/CMakeFiles/client.dir/all
 
 # Build rule for subdir invocation for target.
 client/CMakeFiles/client.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/chatapp/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/Secure-chat-app/build/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/CMakeFiles/client.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/chatapp/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/Secure-chat-app/build/CMakeFiles 0
 .PHONY : client/CMakeFiles/client.dir/rule
 
 # Convenience name for target.

@@ -1,4 +1,4 @@
-# Install script for directory: /Users/admin/Desktop/chatapp/client
+# Install script for directory: /Users/admin/Desktop/Secure-chat-app/client
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -79,33 +79,54 @@ void on_message(client* c, websocketpp::connection_hdl hdl, client::message_ptr 
 }
 
 int main() {
-    std::string public_key;
-    std::string private_key = generate_rsa_keypair(public_key);
+    try {
+        std::string public_key;
+        std::string private_key = generate_rsa_keypair(public_key);
 
-    c.set_message_handler(std::bind(&on_message, &c, std::placeholders::_1, std::placeholders::_2));
+        c.init_asio();  // Initialize ASIO
 
-    std::string uri = "ws://localhost:9002";
-    websocketpp::lib::error_code ec;
-    client::connection_ptr con = c.get_connection(uri, ec);
+        c.set_message_handler(std::bind(&on_message, &c, std::placeholders::_1, std::placeholders::_2));
 
-    if (ec) {
-        std::cout << "Could not create connection because: " << ec.message() << std::endl;
-        return 0;
+        std::string uri = "ws://localhost:9002";
+        websocketpp::lib::error_code ec;
+        client::connection_ptr con = c.get_connection(uri, ec);
+
+        if (ec) {
+            std::cout << "Could not create connection because: " << ec.message() << std::endl;
+            return 0;
+        }
+
+        hdl = con->get_handle();
+        c.connect(con);
+
+        std::thread t([&]() { 
+            try {
+                c.run(); 
+            } catch (const std::exception& e) {
+                std::cerr << "Exception in thread: " << e.what() << std::endl;
+            } catch (...) {
+                std::cerr << "Unknown exception in thread!" << std::endl;
+            }
+        });
+
+        Json::Value root;
+        root["data"]["type"] = "hello";
+        root["data"]["public_key"] = public_key;
+
+        Json::StreamWriterBuilder writer;
+        std::string message = Json::writeString(writer, root);
+
+        c.send(hdl, message, websocketpp::frame::opcode::text);
+
+        t.join();  // Wait for the thread to finish
+
+    } catch (const websocketpp::exception& e) {
+        std::cerr << "WebSocket++ exception: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Unknown exception occurred!" << std::endl;
     }
-
-    hdl = con->get_handle();
-    c.connect(con);
-
-    c.run();
-
-    Json::Value root;
-    root["data"]["type"] = "hello";
-    root["data"]["public_key"] = public_key;
-
-    Json::StreamWriterBuilder writer;
-    std::string message = Json::writeString(writer, root);
-
-    c.send(hdl, message, websocketpp::frame::opcode::text);
 
     return 0;
 }

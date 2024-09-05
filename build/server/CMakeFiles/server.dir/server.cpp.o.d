@@ -1,5 +1,5 @@
 server/CMakeFiles/server.dir/server.cpp.o: \
-  /Users/admin/Desktop/chatapp/server/server.cpp \
+  /Users/admin/Desktop/Secure-chat-app/server/server.cpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/iostream \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/__assert \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/__assertion_handler \

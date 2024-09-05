@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/Users/admin/Desktop/chatapp/server/server.cpp" "server/CMakeFiles/server.dir/server.cpp.o" "gcc" "server/CMakeFiles/server.dir/server.cpp.o.d"
+  "/Users/admin/Desktop/Secure-chat-app/server/server.cpp" "server/CMakeFiles/server.dir/server.cpp.o" "gcc" "server/CMakeFiles/server.dir/server.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

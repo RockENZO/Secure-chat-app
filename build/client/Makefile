@@ -57,10 +57,10 @@ RM = /opt/homebrew/Cellar/cmake/3.30.3/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/admin/Desktop/chatapp
+CMAKE_SOURCE_DIR = /Users/admin/Desktop/Secure-chat-app
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/admin/Desktop/chatapp/build
+CMAKE_BINARY_DIR = /Users/admin/Desktop/Secure-chat-app/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,14 +87,14 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	cd /Users/admin/Desktop/chatapp/build && $(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/chatapp/build/CMakeFiles /Users/admin/Desktop/chatapp/build/client//CMakeFiles/progress.marks
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/chatapp/build/CMakeFiles 0
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/Secure-chat-app/build/CMakeFiles /Users/admin/Desktop/Secure-chat-app/build/client//CMakeFiles/progress.marks
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/admin/Desktop/Secure-chat-app/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/clean
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/clean
 .PHONY : clean
 
 # The main clean target
@@ -103,22 +103,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/preinstall
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/preinstall
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /Users/admin/Desktop/chatapp/build && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 client/CMakeFiles/client.dir/rule:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/CMakeFiles/client.dir/rule
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client/CMakeFiles/client.dir/rule
 .PHONY : client/CMakeFiles/client.dir/rule
 
 # Convenience name for target.
@@ -127,7 +127,7 @@ client: client/CMakeFiles/client.dir/rule
 
 # fast build rule for target.
 client/fast:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/build
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/build
 .PHONY : client/fast
 
 client.o: client.cpp.o
@@ -135,7 +135,7 @@ client.o: client.cpp.o
 
 # target to build an object file
 client.cpp.o:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/client.cpp.o
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/client.cpp.o
 .PHONY : client.cpp.o
 
 client.i: client.cpp.i
@@ -143,7 +143,7 @@ client.i: client.cpp.i
 
 # target to preprocess a source file
 client.cpp.i:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/client.cpp.i
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/client.cpp.i
 .PHONY : client.cpp.i
 
 client.s: client.cpp.s
@@ -151,7 +151,7 @@ client.s: client.cpp.s
 
 # target to generate assembly for a file
 client.cpp.s:
-	cd /Users/admin/Desktop/chatapp/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/client.cpp.s
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(MAKE) $(MAKESILENT) -f client/CMakeFiles/client.dir/build.make client/CMakeFiles/client.dir/client.cpp.s
 .PHONY : client.cpp.s
 
 # Help Target
@@ -177,6 +177,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /Users/admin/Desktop/chatapp/build && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /Users/admin/Desktop/Secure-chat-app/build && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

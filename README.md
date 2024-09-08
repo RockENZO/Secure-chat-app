@@ -1,5 +1,9 @@
 # OLAF/Neighbourhood protocol modified
 
+## Setup
+1. Install the required dependencies:
+   ```sh
+   pip install -r requirements.txt
 ## Definitions
 - **User** A user has a key pair. Each user connects to one server at a time.
 - **Server** A server receives messages from clients and relays them towards the destination.

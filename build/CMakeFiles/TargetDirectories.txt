@@ -1,8 +1,0 @@
-/Users/admin/Desktop/Secure-chat-app/build/CMakeFiles/edit_cache.dir
-/Users/admin/Desktop/Secure-chat-app/build/CMakeFiles/rebuild_cache.dir
-/Users/admin/Desktop/Secure-chat-app/build/server/CMakeFiles/server.dir
-/Users/admin/Desktop/Secure-chat-app/build/server/CMakeFiles/edit_cache.dir
-/Users/admin/Desktop/Secure-chat-app/build/server/CMakeFiles/rebuild_cache.dir
-/Users/admin/Desktop/Secure-chat-app/build/client/CMakeFiles/client.dir
-/Users/admin/Desktop/Secure-chat-app/build/client/CMakeFiles/edit_cache.dir
-/Users/admin/Desktop/Secure-chat-app/build/client/CMakeFiles/rebuild_cache.dir

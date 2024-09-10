@@ -1,9 +1,31 @@
 # OLAF/Neighbourhood protocol modified
 
-## Setup
-1. Install the required dependencies:
-   ```sh
-   pip install -r requirements.txt
+## Installation
+
+First, install the required dependencies:
+
+```bash
+pip install websockets cryptography
+```
+## Generating SSL/TLS Certificates
+
+If you haven’t already, generate the cert.pem and key.pem files for SSL/TLS encryption:
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+This command will create a self-signed certificate (cert.pem) and a private key (key.pem) valid for 365 days.
+
+## Running the Application
+To start the WebSocket server, run:
+```bash
+python server.py
+```
+
+To run the client and connect to the WebSocket server, use:
+```bash
+python client.py
+```
+
 ## Definitions
 - **User** A user has a key pair. Each user connects to one server at a time.
 - **Server** A server receives messages from clients and relays them towards the destination.

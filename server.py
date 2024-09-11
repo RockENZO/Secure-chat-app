@@ -21,7 +21,11 @@ async def handler(websocket, path):
                 elif data['data']['type'] == 'public_chat':
                     await handle_public_chat(websocket, data)
     except websockets.ConnectionClosedError:
+        print("ConnectionClosedError caught")
         await handle_disconnect(websocket)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
 
 async def handle_hello(websocket, data):
     public_key_pem = data['data']['public_key']
@@ -39,7 +43,7 @@ async def handle_public_chat(websocket, data):
         print("Invalid message signature")
         return
     username = clients[websocket]
-    chat_message = f"{username}: {data['data']['message']}"
+    chat_message = f"{username} [{data['data']['timestamp']}]: {data['data']['message']}"  # Display timestamp
     print(chat_message)
     await notify_all(chat_message)
 
@@ -51,6 +55,8 @@ async def handle_disconnect(websocket):
         del clients[websocket]
         del public_keys[websocket]
         del counters[websocket]
+    else:
+        print("Client was not found in the list")
 
 async def notify_all(message):
     disconnected_clients = []
@@ -89,7 +95,7 @@ ssl_context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
 start_server = websockets.serve(
     handler,
     "localhost",
-    8766,  # Changed port number
+    8766,
     ssl=ssl_context,
     ping_interval=20,
     ping_timeout=20

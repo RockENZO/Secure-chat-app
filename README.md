@@ -1,5 +1,14 @@
 # OLAF/Neighbourhood protocol modified
 
+## Setting up virtual environment
+```bash
+python -m venv .venv
+```
+To activate the venv, use the command:
+```bash
+source .venv/bin/activate
+```
+
 ## Installation
 
 First, install the required dependencies:
@@ -10,6 +19,38 @@ pip install websockets cryptography
 ## Generating SSL/TLS Certificates
 
 If you haven’t already, generate the cert.pem and key.pem files for SSL/TLS encryption:
+1. Linux / macOS:
+Open your terminal.
+
+Navigate to the directory where your Python project (with server.py and client.py) is located, using the cd command.
+
+Type the openssl command: 
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+
+Follow the prompts to provide information for the certificate. After running the command, two files, key.pem and cert.pem, will be generated in the current directory.
+
+
+2. Windows:
+You need to have OpenSSL installed on your system. If you don't have it installed, you can download it from Win32 OpenSSL and follow the instructions to install it.
+
+Open Command Prompt or PowerShell as an administrator.
+
+Navigate to your project directory:
+
+Run the openssl command:
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+Provide the necessary information for the certificate. Once done, key.pem and cert.pem files will be generated in your project directory.
+
+
+3. WSL (Windows Subsystem for Linux):
+If you're using WSL on Windows, you can open a WSL terminal (e.g., Ubuntu).
+Navigate to your project directory and run the same openssl command as on Linux/macOS.
+
+
 ```bash
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
 ```

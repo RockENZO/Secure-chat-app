@@ -8,8 +8,8 @@ from encryption import generate_rsa_keypair, encrypt_message, decrypt_message
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 import tkinter as tk
-from tkinter import scrolledtext
-import threading
+from tkinter import scrolledtext, ttk
+import threading  # Added this import
 
 # Generate RSA key pair
 private_key, public_key = generate_rsa_keypair()
@@ -28,14 +28,32 @@ class ChatGUI:
         self.master = master
         master.title("Secure Chat Client")
 
-        self.chat_display = scrolledtext.ScrolledText(master, state='disabled')
+        # Create a PanedWindow
+        self.paned_window = ttk.PanedWindow(master, orient=tk.HORIZONTAL)
+        self.paned_window.pack(expand=True, fill='both')
+
+        # Left pane for chat
+        self.left_frame = ttk.Frame(self.paned_window)
+        self.paned_window.add(self.left_frame, weight=3)
+
+        self.chat_display = scrolledtext.ScrolledText(self.left_frame, state='disabled')
         self.chat_display.pack(expand=True, fill='both')
 
-        self.msg_entry = tk.Entry(master)
+        self.msg_entry = tk.Entry(self.left_frame)
         self.msg_entry.pack(side='left', expand=True, fill='x')
 
-        self.send_button = tk.Button(master, text="Send", command=self.send_message)
+        self.send_button = tk.Button(self.left_frame, text="Send", command=self.send_message)
         self.send_button.pack(side='right')
+
+        # Right pane for user list
+        self.right_frame = ttk.Frame(self.paned_window)
+        self.paned_window.add(self.right_frame, weight=1)
+
+        self.user_list_label = tk.Label(self.right_frame, text="Connected Users")
+        self.user_list_label.pack()
+
+        self.user_listbox = tk.Listbox(self.right_frame)
+        self.user_listbox.pack(expand=True, fill='both')
 
         self.websocket = None
         self.connect()
@@ -103,7 +121,11 @@ class ChatGUI:
         try:
             while True:
                 message = await self.websocket.recv()
-                self.display_message(message)
+                data = json.loads(message)
+                if data['type'] == 'chat_message':
+                    self.display_message(data['message'])
+                elif data['type'] == 'user_list':
+                    self.update_user_list(data['users'])
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
 
@@ -118,6 +140,11 @@ class ChatGUI:
         self.chat_display.insert(tk.END, message + '\n')
         self.chat_display.configure(state='disabled')
         self.chat_display.see(tk.END)
+
+    def update_user_list(self, users):
+        self.user_listbox.delete(0, tk.END)
+        for user in users:
+            self.user_listbox.insert(tk.END, user)
 
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)

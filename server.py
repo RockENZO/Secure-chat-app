@@ -37,6 +37,7 @@ async def handle_hello(websocket, data):
     join_message = f"{username} has joined the chat!"
     print(join_message)
     await notify_all(join_message)
+    await broadcast_user_list()
 
 async def handle_public_chat(websocket, data):
     if not verify_message(data, websocket):
@@ -56,19 +57,28 @@ async def handle_disconnect(websocket):
         del public_keys[websocket]
         del counters[websocket]
         await notify_all(leave_message)
+        await broadcast_user_list()
 
 async def notify_all(message):
-    if clients:  # Only attempt to notify if there are connected clients
+    if clients:
         websockets_to_remove = []
         for client_websocket in clients:
             try:
-                await client_websocket.send(message)
+                await client_websocket.send(json.dumps({"type": "chat_message", "message": message}))
             except websockets.ConnectionClosed:
                 websockets_to_remove.append(client_websocket)
         
-        # Remove disconnected clients outside the loop
         for websocket in websockets_to_remove:
             await handle_disconnect(websocket)
+
+async def broadcast_user_list():
+    user_list = list(clients.values())
+    if clients:
+        for client_websocket in clients:
+            try:
+                await client_websocket.send(json.dumps({"type": "user_list", "users": user_list}))
+            except websockets.ConnectionClosed:
+                pass  # We'll handle disconnections in the main loop
 
 def verify_message(data, websocket):
     message = json.dumps(data['data']) + str(data['counter'])

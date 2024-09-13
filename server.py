@@ -6,16 +6,20 @@ import base64
 from encryption import generate_rsa_keypair, encrypt_message, decrypt_message
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
+from auth import hash_password, check_password, generate_jwt
 
 clients = {}
 public_keys = {}
 counters = {}
+user_credentials = {}  # Store user credentials for simplicity
 
 async def handler(websocket, path):
     try:
         async for message in websocket:
             data = json.loads(message)
-            if data['type'] == 'signed_data':
+            if data['type'] == 'auth':
+                await handle_auth(websocket, data)
+            elif data['type'] == 'signed_data':
                 if data['data']['type'] == 'hello':
                     await handle_hello(websocket, data)
                 elif data['data']['type'] == 'public_chat':
@@ -26,6 +30,25 @@ async def handler(websocket, path):
         print(f"Unexpected error for {clients.get(websocket, 'Unknown User')}: {e}")
     finally:
         await handle_disconnect(websocket)
+
+async def handle_auth(websocket, data):
+    action = data['action']
+    username = data['username']
+    password = data['password']
+
+    if action == 'register':
+        if username in user_credentials:
+            await websocket.send(json.dumps({"type": "error", "message": "Username already exists"}))
+        else:
+            user_credentials[username] = hash_password(password)
+            await websocket.send(json.dumps({"type": "success", "message": "Registration successful"}))
+    elif action == 'login':
+        if username not in user_credentials or not check_password(user_credentials[username], password):
+            await websocket.send(json.dumps({"type": "error", "message": "Invalid username or password"}))
+        else:
+            token = generate_jwt(username)
+            print(f"Generated token for {username}: {token}")
+            await websocket.send(json.dumps({"type": "success", "token": token}))
 
 async def handle_hello(websocket, data):
     public_key_pem = data['data']['public_key']

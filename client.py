@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 import tkinter as tk
 from tkinter import scrolledtext, ttk
-import threading  # Added this import
+import threading
 
 # Generate RSA key pair
 private_key, public_key = generate_rsa_keypair()
@@ -28,11 +28,34 @@ class ChatGUI:
         self.master = master
         master.title("Secure Chat Client")
 
-        # Create a PanedWindow
-        self.paned_window = ttk.PanedWindow(master, orient=tk.HORIZONTAL)
+        self.token = None
+
+        # Create login frame
+        self.login_frame = ttk.Frame(master)
+        self.login_frame.pack(expand=True, fill='both')
+
+        self.username_label = ttk.Label(self.login_frame, text="Username")
+        self.username_label.pack()
+        self.username_entry = ttk.Entry(self.login_frame)
+        self.username_entry.pack()
+
+        self.password_label = ttk.Label(self.login_frame, text="Password")
+        self.password_label.pack()
+        self.password_entry = ttk.Entry(self.login_frame, show="*")
+        self.password_entry.pack()
+
+        self.login_button = ttk.Button(self.login_frame, text="Login", command=self.login)
+        self.login_button.pack()
+
+        self.register_button = ttk.Button(self.login_frame, text="Register", command=self.register)
+        self.register_button.pack()
+
+        # Create chat frame
+        self.chat_frame = ttk.Frame(master)
+
+        self.paned_window = ttk.PanedWindow(self.chat_frame, orient=tk.HORIZONTAL)
         self.paned_window.pack(expand=True, fill='both')
 
-        # Left pane for chat
         self.left_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.left_frame, weight=3)
 
@@ -45,7 +68,6 @@ class ChatGUI:
         self.send_button = tk.Button(self.left_frame, text="Send", command=self.send_message)
         self.send_button.pack(side='right')
 
-        # Right pane for user list
         self.right_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.right_frame, weight=1)
 
@@ -56,15 +78,15 @@ class ChatGUI:
         self.user_listbox.pack(expand=True, fill='both')
 
         self.websocket = None
-        self.connect()
-
-    def connect(self):
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.start_loop, daemon=True).start()
 
     def start_loop(self):
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.chat_client())
+        self.loop.run_forever()
+
+    def connect(self):
+        asyncio.run_coroutine_threadsafe(self.chat_client(), self.loop)
 
     async def chat_client(self):
         uri = "wss://localhost:8766"
@@ -95,7 +117,8 @@ class ChatGUI:
                 "public_key": public_pem
             },
             "counter": counter,
-            "signature": sign_message({"type": "hello", "public_key": public_pem}, counter)
+            "signature": sign_message({"type": "hello", "public_key": public_pem}, counter),
+            "token": self.token
         }
         counter += 1
         await self.websocket.send(json.dumps(hello_message))
@@ -145,6 +168,55 @@ class ChatGUI:
         self.user_listbox.delete(0, tk.END)
         for user in users:
             self.user_listbox.insert(tk.END, user)
+
+    def login(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        print(f"Attempting to login with username: {username}")
+        asyncio.run_coroutine_threadsafe(self.authenticate('login', username, password), self.loop)
+
+    def register(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        print(f"Attempting to register with username: {username}")
+        asyncio.run_coroutine_threadsafe(self.authenticate('register', username, password), self.loop)
+
+    async def authenticate(self, action, username, password):
+        uri = "wss://localhost:8766"
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+        try:
+            async with websockets.connect(uri, ssl=ssl_context) as websocket:
+                auth_message = {
+                    "type": "auth",
+                    "action": action,
+                    "username": username,
+                    "password": password
+                }
+                await websocket.send(json.dumps(auth_message))
+                print(f"Sent {action} request for username: {username}")
+                response = await websocket.recv()
+                data = json.loads(response)
+                print(f"Received response: {data}")
+                if data['type'] == 'success':
+                    if action == 'login':
+                        self.token = data['token']
+                        print("Login successful, transitioning to chat frame")
+                        self.master.after(0, self.show_chat_frame)
+                        self.connect()
+                    else:
+                        self.display_message("Registration successful. Please log in.")
+                else:
+                    self.display_message(data['message'])
+        except Exception as e:
+            self.display_message(f"Error: {e}")
+
+    def show_chat_frame(self):
+        print("Transitioning to chat frame")
+        self.login_frame.pack_forget()
+        self.chat_frame.pack(expand=True, fill='both')
 
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)

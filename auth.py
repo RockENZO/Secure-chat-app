@@ -1,5 +1,5 @@
 import bcrypt
-import jwt
+import jwt as pyjwt
 import os
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
@@ -15,15 +15,15 @@ def generate_rsa_keypair():
     return private_key, public_key
 
 def generate_jwt(user_id):
-    return jwt.encode({"user_id": user_id}, SECRET_KEY, algorithm="HS256")
+    return pyjwt.encode({"user_id": user_id}, SECRET_KEY, algorithm="HS256")
 
 def verify_jwt(token):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        payload = pyjwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload.get("user_id")
-    except jwt.ExpiredSignatureError:
+    except pyjwt.ExpiredSignatureError:
         return None
-    except jwt.InvalidTokenError:
+    except pyjwt.InvalidTokenError:
         return None
 
 def hash_password(password):

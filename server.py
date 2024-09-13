@@ -21,6 +21,10 @@ async def handler(websocket, path):
                 elif data['data']['type'] == 'public_chat':
                     await handle_public_chat(websocket, data)
     except websockets.ConnectionClosedError:
+        print(f"Connection closed for {clients.get(websocket, 'Unknown User')}")
+    except Exception as e:
+        print(f"Unexpected error for {clients.get(websocket, 'Unknown User')}: {e}")
+    finally:
         await handle_disconnect(websocket)
 
 async def handle_hello(websocket, data):
@@ -33,39 +37,56 @@ async def handle_hello(websocket, data):
     join_message = f"{username} has joined the chat!"
     print(join_message)
     await notify_all(join_message)
+    await broadcast_user_list()
 
 async def handle_public_chat(websocket, data):
     if not verify_message(data, websocket):
         print("Invalid message signature")
         return
     username = clients[websocket]
-    chat_message = f"{username}: {data['data']['message']}"
+    chat_message = f"{username} [{data['data']['timestamp']}]: {data['data']['message']}"
     print(chat_message)
     await notify_all(chat_message)
 
 async def handle_disconnect(websocket):
     if websocket in clients:
         username = clients[websocket]
-        print(f"{username} disconnected unexpectedly.")
-        await notify_all(f"{username} has left the chat")
+        leave_message = f"{username} has left the chat"
+        print(leave_message)
         del clients[websocket]
         del public_keys[websocket]
         del counters[websocket]
+        await notify_all(leave_message)
+        await broadcast_user_list()
 
 async def notify_all(message):
-    disconnected_clients = []
-    for client in clients:
-        try:
-            await client.send(message)
-        except websockets.ConnectionClosedError:
-            disconnected_clients.append(client)
-    for client in disconnected_clients:
-        await handle_disconnect(client)
+    if clients:
+        websockets_to_remove = []
+        for client_websocket in clients:
+            try:
+                await client_websocket.send(json.dumps({"type": "chat_message", "message": message}))
+            except websockets.ConnectionClosed:
+                websockets_to_remove.append(client_websocket)
+        
+        for websocket in websockets_to_remove:
+            await handle_disconnect(websocket)
+
+async def broadcast_user_list():
+    user_list = list(clients.values())
+    if clients:
+        for client_websocket in clients:
+            try:
+                await client_websocket.send(json.dumps({"type": "user_list", "users": user_list}))
+            except websockets.ConnectionClosed:
+                pass  # We'll handle disconnections in the main loop
 
 def verify_message(data, websocket):
     message = json.dumps(data['data']) + str(data['counter'])
     signature = base64.b64decode(data['signature'])
-    public_key = public_keys[websocket]
+    public_key = public_keys.get(websocket)
+    if not public_key:
+        print(f"Public key not found for {clients.get(websocket, 'Unknown User')}")
+        return False
     try:
         public_key.verify(
             signature,
@@ -80,7 +101,7 @@ def verify_message(data, websocket):
             counters[websocket] = data['counter']
             return True
     except Exception as e:
-        print(f"Verification failed: {e}")
+        print(f"Verification failed for {clients.get(websocket, 'Unknown User')}: {e}")
     return False
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -89,7 +110,7 @@ ssl_context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
 start_server = websockets.serve(
     handler,
     "localhost",
-    8766,  # Changed port number
+    8766,
     ssl=ssl_context,
     ping_interval=20,
     ping_timeout=20

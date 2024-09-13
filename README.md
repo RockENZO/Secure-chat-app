@@ -11,11 +11,22 @@ source .venv/bin/activate
 
 ## Installation
 
-First, install the required dependencies:
+First, install the required dependencies(websockets & cryptography):
 
 ```bash
 pip install websockets cryptography
 ```
+and then for the tkinter GUI:
+- For mac:
+```bash
+brew install tcl-tk
+```
+- For win/linux:
+```bash
+sudo apt-get install python3-tk
+```
+
+
 ## Generating SSL/TLS Certificates
 
 If you haven’t already, generate the cert.pem and key.pem files for SSL/TLS encryption:

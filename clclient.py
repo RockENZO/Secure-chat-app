@@ -69,9 +69,6 @@ class ChatGUI:
         self.private_button = tk.Button(self.command_frame, text="Private", command=self.send_private_command)
         self.private_button.pack(side='left')
 
-        self.list_button = tk.Button(self.command_frame, text="List", command=self.list_members_command)
-        self.list_button.pack(side='left')
-
         self.file_button = tk.Button(self.command_frame, text="File", command=self.send_file_command)
         self.file_button.pack(side='left')
 
@@ -165,12 +162,6 @@ class ChatGUI:
         counter += 1
         await self.websocket.send(json.dumps(file_transfer_message))
 
-    async def list_members(self):
-        message_data = json.dumps({
-            'type': 'list_members'
-        })
-        await self.websocket.send(message_data)
-
     async def listen_for_messages(self):
         try:
             while True:
@@ -202,9 +193,6 @@ class ChatGUI:
             asyncio.run_coroutine_threadsafe(self.send_private_chat(recipient, message), self.loop)
             self.msg_entry.delete(0, tk.END)
 
-    def list_members_command(self):
-        asyncio.run_coroutine_threadsafe(self.list_members(), self.loop)
-
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
         file_content = self.msg_entry.get()
@@ -222,7 +210,6 @@ class ChatGUI:
         self.user_listbox.delete(0, tk.END)
         for user in users:
             self.user_listbox.insert(tk.END, user)
-
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)
     signature = private_key.sign(

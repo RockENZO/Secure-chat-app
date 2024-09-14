@@ -1,121 +1,120 @@
 import asyncio
 import websockets
-import ssl
 import json
 import base64
-from encryption import generate_rsa_keypair, encrypt_message, decrypt_message
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
+from datetime import datetime
+import ssl
 
-clients = {}
-public_keys = {}
-counters = {}
+connected_clients = {}
 
-async def handler(websocket, path):
+async def handle_client(websocket, path):
+    global connected_clients
     try:
         async for message in websocket:
             data = json.loads(message)
             if data['type'] == 'signed_data':
                 if data['data']['type'] == 'hello':
-                    await handle_hello(websocket, data)
+                    username = data['data']['username']
+                    public_key_pem = data['data']['public_key']
+                    public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
+                    fingerprint = get_fingerprint(public_key)
+                    connected_clients[fingerprint] = {
+                        'websocket': websocket,
+                        'username': username,
+                        'public_key': public_key
+                    }
+                    await broadcast_user_list()
                 elif data['data']['type'] == 'public_chat':
-                    await handle_public_chat(websocket, data)
-    except websockets.ConnectionClosedError:
-        print(f"Connection closed for {clients.get(websocket, 'Unknown User')}")
-    except Exception as e:
-        print(f"Unexpected error for {clients.get(websocket, 'Unknown User')}: {e}")
-    finally:
-        await handle_disconnect(websocket)
+                    await broadcast_message(data['data']['message'], data['data']['sender'])
+                elif data['data']['type'] == 'private_chat':
+                    recipient = data['data']['recipient']
+                    message = data['data']['message']
+                    sender = data['data']['sender']
+                    await send_private_message(recipient, message, sender)
+                elif data['data']['type'] == 'file_transfer':
+                    recipient = data['data']['recipient']
+                    file_content = data['data']['file_content']
+                    sender = data['data']['sender']
+                    await send_file_transfer(recipient, file_content, sender)
+                elif data['data']['type'] == 'list_members':
+                    await send_user_list(websocket)
+    except websockets.ConnectionClosed:
+        fingerprint = None
+        for fp, client in connected_clients.items():
+            if client['websocket'] == websocket:
+                fingerprint = fp
+                break
+        if fingerprint:
+            del connected_clients[fingerprint]
+            await broadcast_user_list()
 
-async def handle_hello(websocket, data):
-    public_key_pem = data['data']['public_key']
-    public_key = serialization.load_pem_public_key(public_key_pem.encode())
-    public_keys[websocket] = public_key
-    counters[websocket] = data['counter']
-    username = f"User{len(clients) + 1}"
-    clients[websocket] = username
-    join_message = f"{username} has joined the chat!"
-    print(join_message)
-    await notify_all(join_message)
-    await broadcast_user_list()
+async def broadcast_message(message, sender):
+    for client in connected_clients.values():
+        await client['websocket'].send(json.dumps({
+            'type': 'chat_message',
+            'message': f"[Public] {sender}: {message}"
+        }))
 
-async def handle_public_chat(websocket, data):
-    if not verify_message(data, websocket):
-        print("Invalid message signature")
-        return
-    username = clients[websocket]
-    chat_message = f"{username} [{data['data']['timestamp']}]: {data['data']['message']}"
-    print(chat_message)
-    await notify_all(chat_message)
+async def send_private_message(recipient, message, sender):
+    recipient_fingerprint = None
+    for fp, client in connected_clients.items():
+        if client['username'] == recipient:
+            recipient_fingerprint = fp
+            break
 
-async def handle_disconnect(websocket):
-    if websocket in clients:
-        username = clients[websocket]
-        leave_message = f"{username} has left the chat"
-        print(leave_message)
-        del clients[websocket]
-        del public_keys[websocket]
-        del counters[websocket]
-        await notify_all(leave_message)
-        await broadcast_user_list()
+    if recipient_fingerprint and recipient_fingerprint in connected_clients:
+        await connected_clients[recipient_fingerprint]['websocket'].send(json.dumps({
+            'type': 'chat_message',
+            'message': f"[Private] {sender}: {message}"
+        }))
+        print(f"Sent private message to {recipient}: {message}")  # Debugging statement
+    else:
+        print(f"Recipient {recipient} not found")  # Debugging statement
 
-async def notify_all(message):
-    if clients:
-        websockets_to_remove = []
-        for client_websocket in clients:
-            try:
-                await client_websocket.send(json.dumps({"type": "chat_message", "message": message}))
-            except websockets.ConnectionClosed:
-                websockets_to_remove.append(client_websocket)
-        
-        for websocket in websockets_to_remove:
-            await handle_disconnect(websocket)
+async def send_file_transfer(recipient, file_content, sender):
+    recipient_fingerprint = None
+    for fp, client in connected_clients.items():
+        if client['username'] == recipient:
+            recipient_fingerprint = fp
+            break
+
+    if recipient_fingerprint and recipient_fingerprint in connected_clients:
+        await connected_clients[recipient_fingerprint]['websocket'].send(json.dumps({
+            'type': 'file_transfer',
+            'file_content': file_content,
+            'sender': sender
+        }))
+
+async def send_user_list(websocket):
+    users = [client['username'] for client in connected_clients.values()]
+    await websocket.send(json.dumps({
+        'type': 'user_list',
+        'users': users
+    }))
 
 async def broadcast_user_list():
-    user_list = list(clients.values())
-    if clients:
-        for client_websocket in clients:
-            try:
-                await client_websocket.send(json.dumps({"type": "user_list", "users": user_list}))
-            except websockets.ConnectionClosed:
-                pass  # We'll handle disconnections in the main loop
+    users = [client['username'] for client in connected_clients.values()]
+    for client in connected_clients.values():
+        await client['websocket'].send(json.dumps({
+            'type': 'user_list',
+            'users': users
+        }))
 
-def verify_message(data, websocket):
-    message = json.dumps(data['data']) + str(data['counter'])
-    signature = base64.b64decode(data['signature'])
-    public_key = public_keys.get(websocket)
-    if not public_key:
-        print(f"Public key not found for {clients.get(websocket, 'Unknown User')}")
-        return False
-    try:
-        public_key.verify(
-            signature,
-            message.encode(),
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=32
-            ),
-            hashes.SHA256()
-        )
-        if data['counter'] > counters[websocket]:
-            counters[websocket] = data['counter']
-            return True
-    except Exception as e:
-        print(f"Verification failed for {clients.get(websocket, 'Unknown User')}: {e}")
-    return False
+def get_fingerprint(public_key):
+    public_bytes = public_key.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(public_bytes)
+    return base64.b64encode(digest.finalize()).decode('utf-8')
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
+ssl_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
 
-start_server = websockets.serve(
-    handler,
-    "localhost",
-    8766,
-    ssl=ssl_context,
-    ping_interval=20,
-    ping_timeout=20
-)
+start_server = websockets.serve(handle_client, "localhost", 8766, ssl=ssl_context)
 
 asyncio.get_event_loop().run_until_complete(start_server)
-print("Server started, listening on wss://localhost:8766")
 asyncio.get_event_loop().run_forever()

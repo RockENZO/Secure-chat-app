@@ -1,3 +1,5 @@
+import os
+import subprocess
 import tkinter as tk
 import asyncio
 import websockets
@@ -9,6 +11,18 @@ from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from tkinter import scrolledtext, ttk, simpledialog
+
+# Generate SSL/TLS certificates if they don't exist
+def generate_ssl_certificates():
+    cert_file = "cert.pem"
+    key_file = "key.pem"
+    if not os.path.exists(cert_file) or not os.path.exists(key_file):
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:4096",
+            "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
+            "-subj", "/CN=localhost"
+        ])
+        print("SSL/TLS certificates generated.")
 
 # Generate RSA key pair
 private_key = rsa.generate_private_key(
@@ -251,6 +265,7 @@ def get_fingerprint(public_key):
     return base64.b64encode(digest.finalize()).decode('utf-8')
 
 if __name__ == "__main__":
+    generate_ssl_certificates()  # Generate SSL/TLS certificates
     root = tk.Tk()
     root.withdraw()  # Hide the root window
     username = simpledialog.askstring("Username", "Enter your username:")

@@ -144,6 +144,7 @@ class ChatGUI:
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
+        self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
     async def send_file_transfer(self, recipient, file_content):

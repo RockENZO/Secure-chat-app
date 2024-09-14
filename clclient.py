@@ -65,9 +65,6 @@ class ChatGUI:
         self.command_frame = ttk.Frame(self.left_frame)
         self.command_frame.pack(side='bottom', fill='x')
 
-        self.message_button = tk.Button(self.command_frame, text="Message", command=self.send_chat_command)
-        self.message_button.pack(side='left')
-
         self.private_button = tk.Button(self.command_frame, text="Private", command=self.toggle_message_type)
         self.private_button.pack(side='left')
 
@@ -180,12 +177,6 @@ class ChatGUI:
                 asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
             elif self.message_type == "private" and self.recipient:
                 asyncio.run_coroutine_threadsafe(self.send_private_chat(self.recipient, message), self.loop)
-            self.msg_entry.delete(0, tk.END)
-
-    def send_chat_command(self):
-        message = self.msg_entry.get()
-        if message:
-            asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
             self.msg_entry.delete(0, tk.END)
 
     def toggle_message_type(self):

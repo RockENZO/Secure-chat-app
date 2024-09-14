@@ -55,6 +55,9 @@ class ChatGUI:
         self.send_button = tk.Button(self.left_frame, text="Send", command=self.send_message)
         self.send_button.pack(side='right')
 
+        # Bind the Return key to the send_message method
+        self.msg_entry.bind('<Return>', self.send_message)
+
         # Right pane for user list
         self.right_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.right_frame, weight=1)
@@ -175,7 +178,7 @@ class ChatGUI:
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
 
-    def send_message(self):
+    def send_message(self, event=None):
         message = self.msg_entry.get()
         if message:
             if self.message_type == "public":

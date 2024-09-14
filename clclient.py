@@ -42,6 +42,10 @@ class ChatGUI:
         self.left_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.left_frame, weight=3)
 
+        # Add a label to display the username
+        self.username_label = tk.Label(self.left_frame, text=f"Username: {self.username}", font=("Helvetica", 12))
+        self.username_label.pack(side='top', fill='x')
+
         self.chat_display = scrolledtext.ScrolledText(self.left_frame, state='disabled')
         self.chat_display.pack(expand=True, fill='both')
 

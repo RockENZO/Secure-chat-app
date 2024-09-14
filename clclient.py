@@ -30,6 +30,8 @@ class ChatGUI:
     def __init__(self, master, username):
         self.master = master
         self.username = username
+        self.message_type = "public"  # Track the message type
+        self.recipient = None  # Track the recipient for private messages
         master.title("Secure Chat Client")
 
         # Create a PanedWindow
@@ -66,7 +68,7 @@ class ChatGUI:
         self.message_button = tk.Button(self.command_frame, text="Message", command=self.send_chat_command)
         self.message_button.pack(side='left')
 
-        self.private_button = tk.Button(self.command_frame, text="Private", command=self.send_private_command)
+        self.private_button = tk.Button(self.command_frame, text="Private", command=self.toggle_message_type)
         self.private_button.pack(side='left')
 
         self.file_button = tk.Button(self.command_frame, text="File", command=self.send_file_command)
@@ -174,7 +176,10 @@ class ChatGUI:
     def send_message(self):
         message = self.msg_entry.get()
         if message:
-            asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
+            if self.message_type == "public":
+                asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
+            elif self.message_type == "private" and self.recipient:
+                asyncio.run_coroutine_threadsafe(self.send_private_chat(self.recipient, message), self.loop)
             self.msg_entry.delete(0, tk.END)
 
     def send_chat_command(self):
@@ -183,12 +188,16 @@ class ChatGUI:
             asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
             self.msg_entry.delete(0, tk.END)
 
-    def send_private_command(self):
-        recipient = simpledialog.askstring("Private Message", "Enter recipient username:")
-        message = self.msg_entry.get()
-        if recipient and message:
-            asyncio.run_coroutine_threadsafe(self.send_private_chat(recipient, message), self.loop)
-            self.msg_entry.delete(0, tk.END)
+    def toggle_message_type(self):
+        if self.message_type == "public":
+            self.recipient = simpledialog.askstring("Private Message", "Enter recipient username:")
+            if self.recipient:
+                self.message_type = "private"
+                self.private_button.config(text="Public")
+        else:
+            self.message_type = "public"
+            self.recipient = None
+            self.private_button.config(text="Private")
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")

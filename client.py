@@ -190,10 +190,14 @@ class ChatGUI:
             if self.recipient:
                 self.message_type = "private"
                 self.private_button.config(text="Public")
+                self.username_label.config(text=f"Username: {self.username} (Private to: {self.recipient})")
+                self.highlight_recipient()
         else:
             self.message_type = "public"
             self.recipient = None
             self.private_button.config(text="Private")
+            self.username_label.config(text=f"Username: {self.username}")
+            self.user_listbox.selection_clear(0, tk.END)
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
@@ -212,6 +216,15 @@ class ChatGUI:
         self.user_listbox.delete(0, tk.END)
         for user in users:
             self.user_listbox.insert(tk.END, user)
+        self.highlight_recipient()
+
+    def highlight_recipient(self):
+        if self.recipient:
+            for i in range(self.user_listbox.size()):
+                if self.user_listbox.get(i) == self.recipient:
+                    self.user_listbox.selection_set(i)
+                    self.user_listbox.see(i)
+                    break
 
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)

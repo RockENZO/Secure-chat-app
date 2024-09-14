@@ -54,19 +54,34 @@ async def broadcast_message(message, sender):
     for client in connected_clients.values():
         await client['websocket'].send(json.dumps({
             'type': 'chat_message',
-            'message': f"{sender}: {message}"
+            'message': f"[Public] {sender}: {message}"
         }))
 
 async def send_private_message(recipient, message, sender):
-    if recipient in connected_clients:
-        await connected_clients[recipient]['websocket'].send(json.dumps({
+    recipient_fingerprint = None
+    for fp, client in connected_clients.items():
+        if client['username'] == recipient:
+            recipient_fingerprint = fp
+            break
+
+    if recipient_fingerprint and recipient_fingerprint in connected_clients:
+        await connected_clients[recipient_fingerprint]['websocket'].send(json.dumps({
             'type': 'chat_message',
-            'message': f"Private from {sender}: {message}"
+            'message': f"[Private] {sender}: {message}"
         }))
+        print(f"Sent private message to {recipient}: {message}")  # Debugging statement
+    else:
+        print(f"Recipient {recipient} not found")  # Debugging statement
 
 async def send_file_transfer(recipient, file_content, sender):
-    if recipient in connected_clients:
-        await connected_clients[recipient]['websocket'].send(json.dumps({
+    recipient_fingerprint = None
+    for fp, client in connected_clients.items():
+        if client['username'] == recipient:
+            recipient_fingerprint = fp
+            break
+
+    if recipient_fingerprint and recipient_fingerprint in connected_clients:
+        await connected_clients[recipient_fingerprint]['websocket'].send(json.dumps({
             'type': 'file_transfer',
             'file_content': file_content,
             'sender': sender

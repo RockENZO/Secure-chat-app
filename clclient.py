@@ -1,10 +1,10 @@
-import tkinter as tk  # Add this import statement
-import asyncio  # Add this import statement
-import websockets  # Add this import statement
-import threading  # Add this import statement
-import ssl  # Add this import statement
-import json  # Add this import statement
-import base64  # Add this import statement
+import tkinter as tk
+import asyncio
+import websockets
+import threading
+import ssl
+import json
+import base64
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
@@ -141,6 +141,7 @@ class ChatGUI:
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
+        print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
     async def send_file_transfer(self, recipient, file_content):
         global counter

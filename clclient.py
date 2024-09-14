@@ -1,14 +1,14 @@
-import ssl
-import websockets
-import asyncio
-import json
-import base64
+import tkinter as tk  # Add this import statement
+import asyncio  # Add this import statement
+import websockets  # Add this import statement
+import threading  # Add this import statement
+import ssl  # Add this import statement
+import json  # Add this import statement
+import base64  # Add this import statement
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-import tkinter as tk
 from tkinter import scrolledtext, ttk, simpledialog
-import threading
 
 # Generate RSA key pair
 private_key = rsa.generate_private_key(
@@ -89,14 +89,8 @@ class ChatGUI:
         try:
             async with websockets.connect(uri, ssl=ssl_context) as websocket:
                 self.websocket = websocket
-                self.display_message("Connected to the chat server")
-
-                # Send hello message
                 await self.send_hello()
-
-                # Start listening for messages from the server
                 await self.listen_for_messages()
-
         except Exception as e:
             self.display_message(f"Error: {e}")
 
@@ -122,12 +116,12 @@ class ChatGUI:
             "type": "signed_data",
             "data": {
                 "type": "public_chat",
-                "sender": get_fingerprint(public_key),
+                "sender": self.username,
                 "message": message,
                 "timestamp": timestamp
             },
             "counter": counter,
-            "signature": sign_message({"type": "public_chat", "sender": get_fingerprint(public_key), "message": message, "timestamp": timestamp}, counter)
+            "signature": sign_message({"type": "public_chat", "sender": self.username, "message": message, "timestamp": timestamp}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(chat_message))
@@ -139,10 +133,11 @@ class ChatGUI:
             "data": {
                 "type": "private_chat",
                 "recipient": recipient,
-                "message": message
+                "message": message,
+                "sender": self.username
             },
             "counter": counter,
-            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message}, counter)
+            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
@@ -154,10 +149,11 @@ class ChatGUI:
             "data": {
                 "type": "file_transfer",
                 "recipient": recipient,
-                "file_content": file_content
+                "file_content": file_content,
+                "sender": self.username
             },
             "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_content": file_content}, counter)
+            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_content": file_content, "sender": self.username}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(file_transfer_message))
@@ -210,6 +206,7 @@ class ChatGUI:
         self.user_listbox.delete(0, tk.END)
         for user in users:
             self.user_listbox.insert(tk.END, user)
+
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)
     signature = private_key.sign(

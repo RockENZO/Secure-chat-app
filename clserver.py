@@ -27,15 +27,17 @@ async def handle_client(websocket, path):
                     }
                     await broadcast_user_list()
                 elif data['data']['type'] == 'public_chat':
-                    await broadcast_message(data['data']['message'])
+                    await broadcast_message(data['data']['message'], data['data']['sender'])
                 elif data['data']['type'] == 'private_chat':
                     recipient = data['data']['recipient']
                     message = data['data']['message']
-                    await send_private_message(recipient, message)
+                    sender = data['data']['sender']
+                    await send_private_message(recipient, message, sender)
                 elif data['data']['type'] == 'file_transfer':
                     recipient = data['data']['recipient']
                     file_content = data['data']['file_content']
-                    await send_file_transfer(recipient, file_content)
+                    sender = data['data']['sender']
+                    await send_file_transfer(recipient, file_content, sender)
                 elif data['data']['type'] == 'list_members':
                     await send_user_list(websocket)
     except websockets.ConnectionClosed:
@@ -48,25 +50,26 @@ async def handle_client(websocket, path):
             del connected_clients[fingerprint]
             await broadcast_user_list()
 
-async def broadcast_message(message):
+async def broadcast_message(message, sender):
     for client in connected_clients.values():
         await client['websocket'].send(json.dumps({
             'type': 'chat_message',
-            'message': message
+            'message': f"{sender}: {message}"
         }))
 
-async def send_private_message(recipient, message):
+async def send_private_message(recipient, message, sender):
     if recipient in connected_clients:
         await connected_clients[recipient]['websocket'].send(json.dumps({
             'type': 'chat_message',
-            'message': message
+            'message': f"Private from {sender}: {message}"
         }))
 
-async def send_file_transfer(recipient, file_content):
+async def send_file_transfer(recipient, file_content, sender):
     if recipient in connected_clients:
         await connected_clients[recipient]['websocket'].send(json.dumps({
             'type': 'file_transfer',
-            'file_content': file_content
+            'file_content': file_content,
+            'sender': sender
         }))
 
 async def send_user_list(websocket):

@@ -12,17 +12,28 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from tkinter import scrolledtext, ttk, simpledialog
 
-# Generate SSL/TLS certificates if they don't exist
-def generate_ssl_certificates():
-    cert_file = "cert.pem"
-    key_file = "key.pem"
+# Generate SSL/TLS certificates for the user
+def generate_user_certificates(username):
+    cert_file = f"{username}_cert.pem"
+    key_file = f"{username}_key.pem"
     if not os.path.exists(cert_file) or not os.path.exists(key_file):
         subprocess.run([
             "openssl", "req", "-x509", "-newkey", "rsa:4096",
             "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
-            "-subj", "/CN=localhost"
+            f"-subj", f"/CN={username}"
         ])
-        print("SSL/TLS certificates generated.")
+        print(f"SSL/TLS certificates generated for {username}.")
+    return cert_file, key_file
+
+# Cleanup function to delete certificate and key files
+def cleanup(username):
+    cert_file = f"{username}_cert.pem"
+    key_file = f"{username}_key.pem"
+    if os.path.exists(cert_file):
+        os.remove(cert_file)
+    if os.path.exists(key_file):
+        os.remove(key_file)
+    print(f"SSL/TLS certificates removed for {username}.")
 
 # Generate RSA key pair
 private_key = rsa.generate_private_key(
@@ -92,6 +103,10 @@ class ChatGUI:
         self.file_button = tk.Button(self.command_frame, text="File", command=self.send_file_command)
         self.file_button.pack(side='left')
 
+        # Add a "Log Out" button at the top right corner
+        self.logout_button = tk.Button(master, text="Log Out", command=self.log_out)
+        self.logout_button.pack(side='top', anchor='ne')
+
         self.websocket = None
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.start_loop, daemon=True).start()
@@ -102,7 +117,9 @@ class ChatGUI:
 
     async def chat_client(self):
         uri = "wss://localhost:8766"
+        cert_file, key_file = generate_user_certificates(self.username)
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
@@ -243,6 +260,10 @@ class ChatGUI:
                     self.user_listbox.see(i)
                     break
 
+    def log_out(self):
+        cleanup(self.username)
+        self.master.destroy()
+
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)
     signature = private_key.sign(
@@ -265,7 +286,6 @@ def get_fingerprint(public_key):
     return base64.b64encode(digest.finalize()).decode('utf-8')
 
 if __name__ == "__main__":
-    generate_ssl_certificates()  # Generate SSL/TLS certificates
     root = tk.Tk()
     root.withdraw()  # Hide the root window
     username = simpledialog.askstring("Username", "Enter your username:")

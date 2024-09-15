@@ -86,7 +86,7 @@ async def send_private_message(recipient, message, sender):
             'type': 'chat_message',
             'message': f"[Private] {sender}: {message}"
         }))
-        print(f"Sent private message to {recipient}: {message}")  # Debugging statement
+        print(f"{sender} sent a private message to {recipient}")  # Generic log message
     else:
         print(f"Recipient {recipient} not found")  # Debugging statement
 

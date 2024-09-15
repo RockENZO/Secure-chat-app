@@ -1,5 +1,3 @@
-import os
-import subprocess
 import asyncio
 import websockets
 import json
@@ -10,21 +8,6 @@ from datetime import datetime
 import ssl
 
 connected_clients = {}
-
-# Generate SSL/TLS certificates if they don't exist
-def generate_ssl_certificates():
-    cert_file = "server.crt"
-    key_file = "server.key"
-    if not os.path.exists(cert_file) or not os.path.exists(key_file):
-        subprocess.run([
-            "openssl", "req", "-x509", "-newkey", "rsa:4096",
-            "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
-            "-subj", "/CN=localhost"
-        ])
-        print("SSL/TLS certificates generated.")
-
-# Call the function to generate SSL/TLS certificates
-generate_ssl_certificates()
 
 async def handle_client(websocket, path):
     global connected_clients
@@ -86,7 +69,7 @@ async def send_private_message(recipient, message, sender):
             'type': 'chat_message',
             'message': f"[Private] {sender}: {message}"
         }))
-        print(f"{sender} sent a private message to {recipient}")  # Generic log message
+        print(f"Sent private message to {recipient}: {message}")  # Debugging statement
     else:
         print(f"Recipient {recipient} not found")  # Debugging statement
 

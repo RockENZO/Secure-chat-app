@@ -1,5 +1,3 @@
-import os
-import subprocess
 import tkinter as tk
 import asyncio
 import websockets
@@ -11,29 +9,6 @@ from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from tkinter import scrolledtext, ttk, simpledialog
-
-# Generate SSL/TLS certificates for the user
-def generate_user_certificates(username):
-    cert_file = f"{username}_cert.pem"
-    key_file = f"{username}_key.pem"
-    if not os.path.exists(cert_file) or not os.path.exists(key_file):
-        subprocess.run([
-            "openssl", "req", "-x509", "-newkey", "rsa:4096",
-            "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
-            f"-subj", f"/CN={username}"
-        ])
-        print(f"SSL/TLS certificates generated for {username}.")
-    return cert_file, key_file
-
-# Cleanup function to delete certificate and key files
-def cleanup(username):
-    cert_file = f"{username}_cert.pem"
-    key_file = f"{username}_key.pem"
-    if os.path.exists(cert_file):
-        os.remove(cert_file)
-    if os.path.exists(key_file):
-        os.remove(key_file)
-    print(f"SSL/TLS certificates removed for {username}.")
 
 # Generate RSA key pair
 private_key = rsa.generate_private_key(
@@ -80,9 +55,6 @@ class ChatGUI:
         self.send_button = tk.Button(self.left_frame, text="Send", command=self.send_message)
         self.send_button.pack(side='right')
 
-        # Bind the Return key to the send_message method
-        self.msg_entry.bind('<Return>', self.send_message)
-
         # Right pane for user list
         self.right_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.right_frame, weight=1)
@@ -103,10 +75,6 @@ class ChatGUI:
         self.file_button = tk.Button(self.command_frame, text="File", command=self.send_file_command)
         self.file_button.pack(side='left')
 
-        # Add a "Log Out" button at the top right corner
-        self.logout_button = tk.Button(master, text="Log Out", command=self.log_out)
-        self.logout_button.pack(side='top', anchor='ne')
-
         self.websocket = None
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.start_loop, daemon=True).start()
@@ -117,9 +85,7 @@ class ChatGUI:
 
     async def chat_client(self):
         uri = "wss://localhost:8766"
-        cert_file, key_file = generate_user_certificates(self.username)
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
@@ -178,7 +144,6 @@ class ChatGUI:
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
-        self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
     async def send_file_transfer(self, recipient, file_content):
@@ -209,7 +174,7 @@ class ChatGUI:
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
 
-    def send_message(self, event=None):
+    def send_message(self):
         message = self.msg_entry.get()
         if message:
             if self.message_type == "public":
@@ -224,14 +189,10 @@ class ChatGUI:
             if self.recipient:
                 self.message_type = "private"
                 self.private_button.config(text="Public")
-                self.username_label.config(text=f"Username: {self.username} (Private to: {self.recipient})")
-                self.highlight_recipient()
         else:
             self.message_type = "public"
             self.recipient = None
             self.private_button.config(text="Private")
-            self.username_label.config(text=f"Username: {self.username}")
-            self.user_listbox.selection_clear(0, tk.END)
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
@@ -250,19 +211,6 @@ class ChatGUI:
         self.user_listbox.delete(0, tk.END)
         for user in users:
             self.user_listbox.insert(tk.END, user)
-        self.highlight_recipient()
-
-    def highlight_recipient(self):
-        if self.recipient:
-            for i in range(self.user_listbox.size()):
-                if self.user_listbox.get(i) == self.recipient:
-                    self.user_listbox.selection_set(i)
-                    self.user_listbox.see(i)
-                    break
-
-    def log_out(self):
-        cleanup(self.username)
-        self.master.destroy()
 
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)

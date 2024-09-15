@@ -111,6 +111,9 @@ class ChatGUI:
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.start_loop, daemon=True).start()
 
+        # Bind the window close event to the cleanup function
+        master.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     def start_loop(self):
         asyncio.set_event_loop(self.loop)
         self.loop.run_until_complete(self.chat_client())
@@ -261,6 +264,10 @@ class ChatGUI:
                     break
 
     def log_out(self):
+        cleanup(self.username)
+        self.master.destroy()
+
+    def on_closing(self):
         cleanup(self.username)
         self.master.destroy()
 

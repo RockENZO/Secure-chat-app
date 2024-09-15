@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from datetime import datetime
 import ssl
+import signal
 
 connected_clients = {}
 
@@ -22,6 +23,16 @@ def generate_ssl_certificates():
             "-subj", "/CN=localhost"
         ])
         print("SSL/TLS certificates generated.")
+
+# Cleanup function to delete server certificate and key files
+def cleanup():
+    cert_file = "server.crt"
+    key_file = "server.key"
+    if os.path.exists(cert_file):
+        os.remove(cert_file)
+    if os.path.exists(key_file):
+        os.remove(key_file)
+    print("SSL/TLS certificates removed.")
 
 # Call the function to generate SSL/TLS certificates
 generate_ssl_certificates()
@@ -133,5 +144,18 @@ ssl_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
 
 start_server = websockets.serve(handle_client, "localhost", 8766, ssl=ssl_context)
 
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+loop = asyncio.get_event_loop()
+
+# Register signal handlers for graceful shutdown
+def signal_handler(signal, frame):
+    loop.stop()
+    cleanup()
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+try:
+    loop.run_until_complete(start_server)
+    loop.run_forever()
+finally:
+    cleanup()

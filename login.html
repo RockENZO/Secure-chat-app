@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Login</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            width: 350px;
+            text-align: center;
+        }
+
+        .login-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .login-container input {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .login-container input:focus {
+            border-color: #00c9ff;
+            outline: none;
+        }
+
+        .login-container button {
+            width: 90%;
+            padding: 12px;
+            background-color: #ff7eb9;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .login-container button:hover {
+            background-color: #ff65a3;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success-message {
+            color: green;
+            font-size: 14px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <h2>Login to Chat</h2>
+    <form id="loginForm">
+        <input type="text" id="email" name="email" placeholder="Email" required>
+        <span class="error-message" id="emailError">Email must contain "@"!</span>
+        <input type="password" id="password" name="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+        <span class="success-message" id="loginSuccess">Login successful!</span>
+    </form>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function(event) {
+        event.preventDefault();  // Prevent the form from submitting immediately
+
+        const emailInput = document.getElementById('email');
+        const emailError = document.getElementById('emailError');
+        const loginSuccess = document.getElementById('loginSuccess');
+
+        // Updated simple validation: checks if email contains "@"
+        if (!emailInput.value.includes('@')) {
+            emailError.style.display = 'block';  // Show error message
+        } else {
+            emailError.style.display = 'none';  // Hide error message
+            loginSuccess.style.display = 'block';  // Show success message
+            // You can add actual form submission logic here if needed
+            // this.submit();  // Uncomment this to allow form submission after validation
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -45,12 +45,14 @@ async def handle_client(websocket, path):
             if data['type'] == 'signed_data':
                 if data['data']['type'] == 'hello':
                     username = data['data']['username']
+                    user_id = data['data']['user_id']
                     public_key_pem = data['data']['public_key']
                     public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
                     fingerprint = get_fingerprint(public_key)
                     connected_clients[fingerprint] = {
                         'websocket': websocket,
                         'username': username,
+                        'user_id': user_id,
                         'public_key': public_key
                     }
                     await broadcast_user_list()
@@ -116,14 +118,14 @@ async def send_file_transfer(recipient, file_content, sender):
         }))
 
 async def send_user_list(websocket):
-    users = [client['username'] for client in connected_clients.values()]
+    users = [{"username": client['username'], "user_id": client['user_id']} for client in connected_clients.values()]
     await websocket.send(json.dumps({
         'type': 'user_list',
         'users': users
     }))
 
 async def broadcast_user_list():
-    users = [client['username'] for client in connected_clients.values()]
+    users = [{"username": client['username'], "user_id": client['user_id']} for client in connected_clients.values()]
     for client in connected_clients.values():
         await client['websocket'].send(json.dumps({
             'type': 'user_list',

@@ -7,33 +7,34 @@ import threading
 import ssl
 import json
 import base64
+import uuid
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from tkinter import scrolledtext, ttk, simpledialog
 
 # Generate SSL/TLS certificates for the user
-def generate_user_certificates(username):
-    cert_file = f"{username}_cert.pem"
-    key_file = f"{username}_key.pem"
+def generate_user_certificates(username, user_id):
+    cert_file = f"{username}_{user_id}_cert.pem"
+    key_file = f"{username}_{user_id}_key.pem"
     if not os.path.exists(cert_file) or not os.path.exists(key_file):
         subprocess.run([
             "openssl", "req", "-x509", "-newkey", "rsa:4096",
             "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
-            f"-subj", f"/CN={username}"
+            f"-subj", f"/CN={username}/UID={user_id}"
         ])
-        print(f"SSL/TLS certificates generated for {username}.")
+        print(f"SSL/TLS certificates generated for {username} with ID {user_id}.")
     return cert_file, key_file
 
 # Cleanup function to delete certificate and key files
-def cleanup(username):
-    cert_file = f"{username}_cert.pem"
-    key_file = f"{username}_key.pem"
+def cleanup(username, user_id):
+    cert_file = f"{username}_{user_id}_cert.pem"
+    key_file = f"{username}_{user_id}_key.pem"
     if os.path.exists(cert_file):
         os.remove(cert_file)
     if os.path.exists(key_file):
         os.remove(key_file)
-    print(f"SSL/TLS certificates removed for {username}.")
+    print(f"SSL/TLS certificates removed for {username} with ID {user_id}.")
 
 # Generate RSA key pair
 private_key = rsa.generate_private_key(
@@ -52,9 +53,10 @@ public_pem = public_key.public_bytes(
 counter = 0
 
 class ChatGUI:
-    def __init__(self, master, username):
+    def __init__(self, master, username, user_id):
         self.master = master
         self.username = username
+        self.user_id = user_id
         self.message_type = "public"  # Track the message type
         self.recipient = None  # Track the recipient for private messages
         master.title("Secure Chat Client")
@@ -67,8 +69,8 @@ class ChatGUI:
         self.left_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.left_frame, weight=3)
 
-        # Add a label to display the username
-        self.username_label = tk.Label(self.left_frame, text=f"Username: {self.username}", font=("Helvetica", 12))
+        # Add a label to display the username and user ID
+        self.username_label = tk.Label(self.left_frame, text=f"Username: {self.username} (ID: {self.user_id})", font=("Helvetica", 12))
         self.username_label.pack(side='top', fill='x')
 
         self.chat_display = scrolledtext.ScrolledText(self.left_frame, state='disabled')
@@ -120,7 +122,7 @@ class ChatGUI:
 
     async def chat_client(self):
         uri = "wss://localhost:8766"
-        cert_file, key_file = generate_user_certificates(self.username)
+        cert_file, key_file = generate_user_certificates(self.username, self.user_id)
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ssl_context.check_hostname = False
@@ -141,10 +143,11 @@ class ChatGUI:
             "data": {
                 "type": "hello",
                 "public_key": public_pem,
-                "username": self.username
+                "username": self.username,
+                "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username}, counter)
+            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(hello_message))
@@ -157,11 +160,12 @@ class ChatGUI:
             "data": {
                 "type": "public_chat",
                 "sender": self.username,
+                "user_id": self.user_id,
                 "message": message,
                 "timestamp": timestamp
             },
             "counter": counter,
-            "signature": sign_message({"type": "public_chat", "sender": self.username, "message": message, "timestamp": timestamp}, counter)
+            "signature": sign_message({"type": "public_chat", "sender": self.username, "user_id": self.user_id, "message": message, "timestamp": timestamp}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(chat_message))
@@ -174,10 +178,11 @@ class ChatGUI:
                 "type": "private_chat",
                 "recipient": recipient,
                 "message": message,
-                "sender": self.username
+                "sender": self.username,
+                "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username}, counter)
+            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
@@ -192,10 +197,11 @@ class ChatGUI:
                 "type": "file_transfer",
                 "recipient": recipient,
                 "file_content": file_content,
-                "sender": self.username
+                "sender": self.username,
+                "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_content": file_content, "sender": self.username}, counter)
+            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_content": file_content, "sender": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(file_transfer_message))
@@ -227,13 +233,13 @@ class ChatGUI:
             if self.recipient:
                 self.message_type = "private"
                 self.private_button.config(text="Public")
-                self.username_label.config(text=f"Username: {self.username} (Private to: {self.recipient})")
+                self.username_label.config(text=f"Username: {self.username} (ID: {self.user_id}) (Private to: {self.recipient})")
                 self.highlight_recipient()
         else:
             self.message_type = "public"
             self.recipient = None
             self.private_button.config(text="Private")
-            self.username_label.config(text=f"Username: {self.username}")
+            self.username_label.config(text=f"Username: {self.username} (ID: {self.user_id})")
             self.user_listbox.selection_clear(0, tk.END)
 
     def send_file_command(self):
@@ -264,11 +270,11 @@ class ChatGUI:
                     break
 
     def log_out(self):
-        cleanup(self.username)
+        cleanup(self.username, self.user_id)
         self.master.destroy()
 
     def on_closing(self):
-        cleanup(self.username)
+        cleanup(self.username, self.user_id)
         self.master.destroy()
 
 def sign_message(data, counter):
@@ -297,8 +303,9 @@ if __name__ == "__main__":
     root.withdraw()  # Hide the root window
     username = simpledialog.askstring("Username", "Enter your username:")
     if username:
+        user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window
-        chat_gui = ChatGUI(root, username)
+        chat_gui = ChatGUI(root, username, user_id)
         root.mainloop()
     else:
         print("Username is required to start the chat.")

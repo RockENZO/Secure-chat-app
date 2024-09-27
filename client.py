@@ -11,7 +11,9 @@ import uuid
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-from tkinter import scrolledtext, ttk, simpledialog
+from tkinter import scrolledtext, ttk, simpledialog, filedialog
+import webbrowser
+import signal
 
 # Generate SSL/TLS certificates for the user
 def generate_user_certificates(username, user_id):
@@ -189,22 +191,23 @@ class ChatGUI:
         self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
-    async def send_file_transfer(self, recipient, file_content):
+    async def send_file_transfer(self, recipient, file_url):
         global counter
         file_transfer_message = {
             "type": "signed_data",
             "data": {
                 "type": "file_transfer",
                 "recipient": recipient,
-                "file_content": file_content,
+                "file_url": file_url,
                 "sender": self.username,
                 "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_content": file_content, "sender": self.username, "user_id": self.user_id}, counter)
+            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(file_transfer_message))
+        self.display_message(f"File sent to {recipient}: {file_url}")  # Display the message on sender's GUI
 
     async def listen_for_messages(self):
         try:
@@ -215,6 +218,8 @@ class ChatGUI:
                     self.display_message(data['message'])
                 elif data['type'] == 'user_list':
                     self.update_user_list(data['users'])
+                elif data['type'] == 'file_transfer':
+                    self.display_message(f"File received from {data['sender']}: {data['file_url']}", is_link=True)
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
 
@@ -244,14 +249,27 @@ class ChatGUI:
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
-        file_content = self.msg_entry.get()
-        if recipient and file_content:
-            asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_content), self.loop)
-            self.msg_entry.delete(0, tk.END)
+        if recipient:
+            file_path = filedialog.askopenfilename()
+            if file_path:
+                file_url = self.upload_file(file_path)
+                asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url), self.loop)
 
-    def display_message(self, message):
+    def upload_file(self, file_path):
+        # Simulate file upload and return a URL
+        file_name = os.path.basename(file_path)
+        file_url = f"http://localhost/files/{file_name}"
+        # In a real application, you would upload the file to a server and get the URL
+        return file_url
+
+    def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')
-        self.chat_display.insert(tk.END, message + '\n')
+        if is_link:
+            self.chat_display.insert(tk.END, message + '\n', ('link',))
+            self.chat_display.tag_config('link', foreground='blue', underline=True)
+            self.chat_display.tag_bind('link', '<Button-1>', lambda e: webbrowser.open(message.split()[-1]))
+        else:
+            self.chat_display.insert(tk.END, message + '\n')
         self.chat_display.configure(state='disabled')
         self.chat_display.see(tk.END)
 
@@ -298,6 +316,10 @@ def get_fingerprint(public_key):
     digest.update(public_bytes)
     return base64.b64encode(digest.finalize()).decode('utf-8')
 
+def signal_handler(signal, frame):
+    cleanup(username, user_id)
+    os._exit(0)
+
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Hide the root window
@@ -306,6 +328,7 @@ if __name__ == "__main__":
         user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window
         chat_gui = ChatGUI(root, username, user_id)
+        signal.signal(signal.SIGINT, signal_handler)
         root.mainloop()
     else:
         print("Username is required to start the chat.")

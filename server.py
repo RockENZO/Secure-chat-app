@@ -1,32 +1,58 @@
+import os
+import subprocess
 import asyncio
 import websockets
 import json
 import base64
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-from auth import hash_password, check_password, generate_jwt
+from datetime import datetime
+import ssl
+import signal
 
-clients = {}
-public_keys = {}
-counters = {}
-user_credentials = {}  # Store user credentials for simplicity
+connected_clients = {}
+
+# Generate SSL/TLS certificates if they don't exist
+def generate_ssl_certificates():
+    cert_file = "server.crt"
+    key_file = "server.key"
+    if not os.path.exists(cert_file) or not os.path.exists(key_file):
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:4096",
+            "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
+            "-subj", "/CN=localhost"
+        ])
+        print("SSL/TLS certificates generated.")
+
+# Cleanup function to delete server certificate and key files
+def cleanup():
+    cert_file = "server.crt"
+    key_file = "server.key"
+    if os.path.exists(cert_file):
+        os.remove(cert_file)
+    if os.path.exists(key_file):
+        os.remove(key_file)
+    print("SSL/TLS certificates removed.")
+
+# Call the function to generate SSL/TLS certificates
+generate_ssl_certificates()
 
 async def handle_client(websocket, path):
     global connected_clients
     try:
         async for message in websocket:
             data = json.loads(message)
-            if data['type'] == 'auth':
-                await handle_auth(websocket, data)
-            elif data['type'] == 'signed_data':
+            if data['type'] == 'signed_data':
                 if data['data']['type'] == 'hello':
                     username = data['data']['username']
+                    user_id = data['data']['user_id']
                     public_key_pem = data['data']['public_key']
                     public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
                     fingerprint = get_fingerprint(public_key)
                     connected_clients[fingerprint] = {
                         'websocket': websocket,
                         'username': username,
+                        'user_id': user_id,
                         'public_key': public_key
                     }
                     await broadcast_user_list()
@@ -54,36 +80,12 @@ async def handle_client(websocket, path):
             del connected_clients[fingerprint]
             await broadcast_user_list()
 
-async def handle_auth(websocket, data):
-    action = data['action']
-    username = data['username']
-    password = data['password']
-
-    if action == 'register':
-        if username in user_credentials:
-            await websocket.send(json.dumps({"type": "error", "message": "Username already exists"}))
-        else:
-            user_credentials[username] = hash_password(password)
-            await websocket.send(json.dumps({"type": "success", "message": "Registration successful"}))
-    elif action == 'login':
-        if username not in user_credentials or not check_password(user_credentials[username], password):
-            await websocket.send(json.dumps({"type": "error", "message": "Invalid username or password"}))
-        else:
-            token = generate_jwt(username)
-            print(f"Generated token for {username}: {token}")
-            await websocket.send(json.dumps({"type": "success", "token": token}))
-
-async def handle_hello(websocket, data):
-    public_key_pem = data['data']['public_key']
-    public_key = serialization.load_pem_public_key(public_key_pem.encode())
-    public_keys[websocket] = public_key
-    counters[websocket] = data['counter']
-    username = f"User{len(clients) + 1}"
-    clients[websocket] = username
-    join_message = f"{username} has joined the chat!"
-    print(join_message)
-    await notify_all(join_message)
-    await broadcast_user_list()
+async def broadcast_message(message, sender):
+    for client in connected_clients.values():
+        await client['websocket'].send(json.dumps({
+            'type': 'chat_message',
+            'message': f"[Public] {sender}: {message}"
+        }))
 
 async def send_private_message(recipient, message, sender):
     recipient_fingerprint = None
@@ -97,7 +99,7 @@ async def send_private_message(recipient, message, sender):
             'type': 'chat_message',
             'message': f"[Private] {sender}: {message}"
         }))
-        print(f"Sent private message to {recipient}: {message}")  # Debugging statement
+        print(f"{sender} sent a private message to {recipient}")  # Generic log message
     else:
         print(f"Recipient {recipient} not found")  # Debugging statement
 
@@ -116,14 +118,14 @@ async def send_file_transfer(recipient, file_content, sender):
         }))
 
 async def send_user_list(websocket):
-    users = [client['username'] for client in connected_clients.values()]
+    users = [{"username": client['username'], "user_id": client['user_id']} for client in connected_clients.values()]
     await websocket.send(json.dumps({
         'type': 'user_list',
         'users': users
     }))
 
 async def broadcast_user_list():
-    users = [client['username'] for client in connected_clients.values()]
+    users = [{"username": client['username'], "user_id": client['user_id']} for client in connected_clients.values()]
     for client in connected_clients.values():
         await client['websocket'].send(json.dumps({
             'type': 'user_list',
@@ -144,5 +146,18 @@ ssl_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
 
 start_server = websockets.serve(handle_client, "localhost", 8766, ssl=ssl_context)
 
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+loop = asyncio.get_event_loop()
+
+# Register signal handlers for graceful shutdown
+def signal_handler(signal, frame):
+    loop.stop()
+    cleanup()
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+try:
+    loop.run_until_complete(start_server)
+    loop.run_forever()
+finally:
+    cleanup()

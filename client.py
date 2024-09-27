@@ -1,3 +1,5 @@
+import os
+import subprocess
 import tkinter as tk
 import asyncio
 import websockets
@@ -5,12 +7,36 @@ import threading
 import ssl
 import json
 import base64
+import uuid
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-import tkinter as tk
-from tkinter import scrolledtext, ttk
-import threading
+from tkinter import scrolledtext, ttk, simpledialog, filedialog
+import webbrowser
+import signal
+
+# Generate SSL/TLS certificates for the user
+def generate_user_certificates(username, user_id):
+    cert_file = f"{username}_{user_id}_cert.pem"
+    key_file = f"{username}_{user_id}_key.pem"
+    if not os.path.exists(cert_file) or not os.path.exists(key_file):
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:4096",
+            "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
+            f"-subj", f"/CN={username}/UID={user_id}"
+        ])
+        print(f"SSL/TLS certificates generated for {username} with ID {user_id}.")
+    return cert_file, key_file
+
+# Cleanup function to delete certificate and key files
+def cleanup(username, user_id):
+    cert_file = f"{username}_{user_id}_cert.pem"
+    key_file = f"{username}_{user_id}_key.pem"
+    if os.path.exists(cert_file):
+        os.remove(cert_file)
+    if os.path.exists(key_file):
+        os.remove(key_file)
+    print(f"SSL/TLS certificates removed for {username} with ID {user_id}.")
 
 # Generate RSA key pair
 private_key = rsa.generate_private_key(
@@ -29,46 +55,24 @@ public_pem = public_key.public_bytes(
 counter = 0
 
 class ChatGUI:
-    def __init__(self, master, username):
+    def __init__(self, master, username, user_id):
         self.master = master
         self.username = username
+        self.user_id = user_id
         self.message_type = "public"  # Track the message type
         self.recipient = None  # Track the recipient for private messages
         master.title("Secure Chat Client")
 
-        self.token = None
-
-        # Create login frame
-        self.login_frame = ttk.Frame(master)
-        self.login_frame.pack(expand=True, fill='both')
-
-        self.username_label = ttk.Label(self.login_frame, text="Username")
-        self.username_label.pack()
-        self.username_entry = ttk.Entry(self.login_frame)
-        self.username_entry.pack()
-
-        self.password_label = ttk.Label(self.login_frame, text="Password")
-        self.password_label.pack()
-        self.password_entry = ttk.Entry(self.login_frame, show="*")
-        self.password_entry.pack()
-
-        self.login_button = ttk.Button(self.login_frame, text="Login", command=self.login)
-        self.login_button.pack()
-
-        self.register_button = ttk.Button(self.login_frame, text="Register", command=self.register)
-        self.register_button.pack()
-
-        # Create chat frame
-        self.chat_frame = ttk.Frame(master)
-
-        self.paned_window = ttk.PanedWindow(self.chat_frame, orient=tk.HORIZONTAL)
+        # Create a PanedWindow
+        self.paned_window = ttk.PanedWindow(master, orient=tk.HORIZONTAL)
         self.paned_window.pack(expand=True, fill='both')
 
+        # Left pane for chat
         self.left_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.left_frame, weight=3)
 
-        # Add a label to display the username
-        self.username_label = tk.Label(self.left_frame, text=f"Username: {self.username}", font=("Helvetica", 12))
+        # Add a label to display the username and user ID
+        self.username_label = tk.Label(self.left_frame, text=f"Username: {self.username} (ID: {self.user_id})", font=("Helvetica", 12))
         self.username_label.pack(side='top', fill='x')
 
         self.chat_display = scrolledtext.ScrolledText(self.left_frame, state='disabled')
@@ -80,6 +84,10 @@ class ChatGUI:
         self.send_button = tk.Button(self.left_frame, text="Send", command=self.send_message)
         self.send_button.pack(side='right')
 
+        # Bind the Return key to the send_message method
+        self.msg_entry.bind('<Return>', self.send_message)
+
+        # Right pane for user list
         self.right_frame = ttk.Frame(self.paned_window)
         self.paned_window.add(self.right_frame, weight=1)
 
@@ -89,20 +97,36 @@ class ChatGUI:
         self.user_listbox = tk.Listbox(self.right_frame)
         self.user_listbox.pack(expand=True, fill='both')
 
+        # Command buttons
+        self.command_frame = ttk.Frame(self.left_frame)
+        self.command_frame.pack(side='bottom', fill='x')
+
+        self.private_button = tk.Button(self.command_frame, text="Private", command=self.toggle_message_type)
+        self.private_button.pack(side='left')
+
+        self.file_button = tk.Button(self.command_frame, text="File", command=self.send_file_command)
+        self.file_button.pack(side='left')
+
+        # Add a "Log Out" button at the top right corner
+        self.logout_button = tk.Button(master, text="Log Out", command=self.log_out)
+        self.logout_button.pack(side='top', anchor='ne')
+
         self.websocket = None
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.start_loop, daemon=True).start()
 
+        # Bind the window close event to the cleanup function
+        master.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     def start_loop(self):
         asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
-
-    def connect(self):
-        asyncio.run_coroutine_threadsafe(self.chat_client(), self.loop)
+        self.loop.run_until_complete(self.chat_client())
 
     async def chat_client(self):
         uri = "wss://localhost:8766"
+        cert_file, key_file = generate_user_certificates(self.username, self.user_id)
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
@@ -121,11 +145,11 @@ class ChatGUI:
             "data": {
                 "type": "hello",
                 "public_key": public_pem,
-                "username": self.username
+                "username": self.username,
+                "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "hello", "public_key": public_pem}, counter),
-            "token": self.token
+            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(hello_message))
@@ -138,11 +162,12 @@ class ChatGUI:
             "data": {
                 "type": "public_chat",
                 "sender": self.username,
+                "user_id": self.user_id,
                 "message": message,
                 "timestamp": timestamp
             },
             "counter": counter,
-            "signature": sign_message({"type": "public_chat", "sender": self.username, "message": message, "timestamp": timestamp}, counter)
+            "signature": sign_message({"type": "public_chat", "sender": self.username, "user_id": self.user_id, "message": message, "timestamp": timestamp}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(chat_message))
@@ -155,30 +180,34 @@ class ChatGUI:
                 "type": "private_chat",
                 "recipient": recipient,
                 "message": message,
-                "sender": self.username
+                "sender": self.username,
+                "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username}, counter)
+            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
+        self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
-    async def send_file_transfer(self, recipient, file_content):
+    async def send_file_transfer(self, recipient, file_url):
         global counter
         file_transfer_message = {
             "type": "signed_data",
             "data": {
                 "type": "file_transfer",
                 "recipient": recipient,
-                "file_content": file_content,
-                "sender": self.username
+                "file_url": file_url,
+                "sender": self.username,
+                "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_content": file_content, "sender": self.username}, counter)
+            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(file_transfer_message))
+        self.display_message(f"File sent to {recipient}: {file_url}")  # Display the message on sender's GUI
 
     async def listen_for_messages(self):
         try:
@@ -189,10 +218,12 @@ class ChatGUI:
                     self.display_message(data['message'])
                 elif data['type'] == 'user_list':
                     self.update_user_list(data['users'])
+                elif data['type'] == 'file_transfer':
+                    self.display_message(f"File received from {data['sender']}: {data['file_url']}", is_link=True)
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
 
-    def send_message(self):
+    def send_message(self, event=None):
         message = self.msg_entry.get()
         if message:
             if self.message_type == "public":
@@ -207,21 +238,38 @@ class ChatGUI:
             if self.recipient:
                 self.message_type = "private"
                 self.private_button.config(text="Public")
+                self.username_label.config(text=f"Username: {self.username} (ID: {self.user_id}) (Private to: {self.recipient})")
+                self.highlight_recipient()
         else:
             self.message_type = "public"
             self.recipient = None
             self.private_button.config(text="Private")
+            self.username_label.config(text=f"Username: {self.username} (ID: {self.user_id})")
+            self.user_listbox.selection_clear(0, tk.END)
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
-        file_content = self.msg_entry.get()
-        if recipient and file_content:
-            asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_content), self.loop)
-            self.msg_entry.delete(0, tk.END)
+        if recipient:
+            file_path = filedialog.askopenfilename()
+            if file_path:
+                file_url = self.upload_file(file_path)
+                asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url), self.loop)
 
-    def display_message(self, message):
+    def upload_file(self, file_path):
+        # Simulate file upload and return a URL
+        file_name = os.path.basename(file_path)
+        file_url = f"http://localhost/files/{file_name}"
+        # In a real application, you would upload the file to a server and get the URL
+        return file_url
+
+    def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')
-        self.chat_display.insert(tk.END, message + '\n')
+        if is_link:
+            self.chat_display.insert(tk.END, message + '\n', ('link',))
+            self.chat_display.tag_config('link', foreground='blue', underline=True)
+            self.chat_display.tag_bind('link', '<Button-1>', lambda e: webbrowser.open(message.split()[-1]))
+        else:
+            self.chat_display.insert(tk.END, message + '\n')
         self.chat_display.configure(state='disabled')
         self.chat_display.see(tk.END)
 
@@ -229,55 +277,23 @@ class ChatGUI:
         self.user_listbox.delete(0, tk.END)
         for user in users:
             self.user_listbox.insert(tk.END, user)
+        self.highlight_recipient()
 
-    def login(self):
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-        print(f"Attempting to login with username: {username}")
-        asyncio.run_coroutine_threadsafe(self.authenticate('login', username, password), self.loop)
+    def highlight_recipient(self):
+        if self.recipient:
+            for i in range(self.user_listbox.size()):
+                if self.user_listbox.get(i) == self.recipient:
+                    self.user_listbox.selection_set(i)
+                    self.user_listbox.see(i)
+                    break
 
-    def register(self):
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-        print(f"Attempting to register with username: {username}")
-        asyncio.run_coroutine_threadsafe(self.authenticate('register', username, password), self.loop)
+    def log_out(self):
+        cleanup(self.username, self.user_id)
+        self.master.destroy()
 
-    async def authenticate(self, action, username, password):
-        uri = "wss://localhost:8766"
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-
-        try:
-            async with websockets.connect(uri, ssl=ssl_context) as websocket:
-                auth_message = {
-                    "type": "auth",
-                    "action": action,
-                    "username": username,
-                    "password": password
-                }
-                await websocket.send(json.dumps(auth_message))
-                print(f"Sent {action} request for username: {username}")
-                response = await websocket.recv()
-                data = json.loads(response)
-                print(f"Received response: {data}")
-                if data['type'] == 'success':
-                    if action == 'login':
-                        self.token = data['token']
-                        print("Login successful, transitioning to chat frame")
-                        self.master.after(0, self.show_chat_frame)
-                        self.connect()
-                    else:
-                        self.display_message("Registration successful. Please log in.")
-                else:
-                    self.display_message(data['message'])
-        except Exception as e:
-            self.display_message(f"Error: {e}")
-
-    def show_chat_frame(self):
-        print("Transitioning to chat frame")
-        self.login_frame.pack_forget()
-        self.chat_frame.pack(expand=True, fill='both')
+    def on_closing(self):
+        cleanup(self.username, self.user_id)
+        self.master.destroy()
 
 def sign_message(data, counter):
     message = json.dumps(data) + str(counter)
@@ -300,13 +316,19 @@ def get_fingerprint(public_key):
     digest.update(public_bytes)
     return base64.b64encode(digest.finalize()).decode('utf-8')
 
+def signal_handler(signal, frame):
+    cleanup(username, user_id)
+    os._exit(0)
+
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Hide the root window
     username = simpledialog.askstring("Username", "Enter your username:")
     if username:
+        user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window
-        chat_gui = ChatGUI(root, username)
+        chat_gui = ChatGUI(root, username, user_id)
+        signal.signal(signal.SIGINT, signal_handler)
         root.mainloop()
     else:
         print("Username is required to start the chat.")

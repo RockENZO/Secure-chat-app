@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from tkinter import scrolledtext, ttk, simpledialog, filedialog
 import webbrowser
 import signal
+from time import time
 
 # Generate SSL/TLS certificates for the user
 def generate_user_certificates(username, user_id):
@@ -50,6 +51,25 @@ public_pem = public_key.public_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PublicFormat.SubjectPublicKeyInfo
 ).decode('utf-8')
+
+class RateLimiter:
+    def __init__(self, max_messages, time_frame):
+        self.max_messages = max_messages
+        self.time_frame = time_frame
+        self.message_timestamps = []
+
+    def can_send_message(self):
+        current_time = time()
+        self.message_timestamps = [t for t in self.message_timestamps if current_time - t <= self.time_frame]
+        
+        if len(self.message_timestamps) < self.max_messages:
+            self.message_timestamps.append(current_time)
+            return True
+        return False
+
+# Initialize the rate limiter (e.g., 500 messages per 86400 seconds)
+rate_limiter = RateLimiter(max_messages=500, time_frame=86400)
+
 
 # Counter for message signing
 counter = 0
@@ -223,14 +243,19 @@ class ChatGUI:
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
 
+
     def send_message(self, event=None):
         message = self.msg_entry.get()
         if message:
             if self.message_type == "public":
-                asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
+                if rate_limiter.can_send_message():
+                    asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
+                    self.msg_entry.delete(0, tk.END)
+                else:
+                    self.display_message("Rate limit exceeded. Please wait before sending another public message.")
             elif self.message_type == "private" and self.recipient:
                 asyncio.run_coroutine_threadsafe(self.send_private_chat(self.recipient, message), self.loop)
-            self.msg_entry.delete(0, tk.END)
+                self.msg_entry.delete(0, tk.END)
 
     def toggle_message_type(self):
         if self.message_type == "public":

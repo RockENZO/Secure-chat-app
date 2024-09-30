@@ -9,8 +9,10 @@ from cryptography.hazmat.primitives import serialization, hashes
 from datetime import datetime
 import ssl
 import signal
+import secrets
 
 connected_clients = {}
+tokens = {}
 
 # Generate SSL/TLS certificates if they don't exist
 def generate_ssl_certificates():
@@ -37,12 +39,25 @@ def cleanup():
 # Call the function to generate SSL/TLS certificates
 generate_ssl_certificates()
 
+def generate_token():
+    return secrets.token_hex(16)
+
 async def handle_client(websocket, path):
     global connected_clients
     try:
         async for message in websocket:
             data = json.loads(message)
-            if data['type'] == 'signed_data':
+            if data['type'] == 'auth':
+                username = data['username']
+                user_id = data['user_id']
+                token = generate_token()
+                tokens[token] = {'username': username, 'user_id': user_id}
+                await websocket.send(json.dumps({'type': 'auth_response', 'token': token}))
+            elif data['type'] == 'signed_data':
+                token = data.get('token')
+                if token not in tokens:
+                    await websocket.send(json.dumps({'type': 'error', 'message': 'Invalid token'}))
+                    continue
                 if data['data']['type'] == 'hello':
                     username = data['data']['username']
                     user_id = data['data']['user_id']

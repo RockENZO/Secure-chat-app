@@ -1,19 +1,20 @@
 import os
 import subprocess
-import tkinter as tk
 import asyncio
 import websockets
-import threading
-import ssl
 import json
 import base64
-import uuid
+import threading
+import signal
+import ssl
+import tkinter as tk
+from tkinter import scrolledtext, ttk, simpledialog, filedialog
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-from tkinter import scrolledtext, ttk, simpledialog, filedialog
-import webbrowser
-import signal
+import secrets
+import uuid
+import re
 
 # Generate SSL/TLS certificates for the user
 def generate_user_certificates(username, user_id):
@@ -53,6 +54,19 @@ public_pem = public_key.public_bytes(
 
 # Counter for message signing
 counter = 0
+
+# Token for authentication
+token = None
+
+def sanitize_username(username):
+    # Allow only alphanumeric characters
+    sanitized_username = re.sub(r'[^a-zA-Z0-9]', '', username)
+    return sanitized_username
+
+def sanitize_message(message):
+    # Allow alphanumeric characters, spaces, and common punctuation
+    sanitized_message = re.sub(r'[^a-zA-Z0-9\s.,!?/;:()\'"-]', '', message)
+    return sanitized_message
 
 class ChatGUI:
     def __init__(self, master, username, user_id):
@@ -133,10 +147,27 @@ class ChatGUI:
         try:
             async with websockets.connect(uri, ssl=ssl_context) as websocket:
                 self.websocket = websocket
+                await self.authenticate()
                 await self.send_hello()
                 await self.listen_for_messages()
         except Exception as e:
             self.display_message(f"Error: {e}")
+
+    async def authenticate(self):
+        global token
+        auth_message = {
+            "type": "auth",
+            "username": self.username,
+            "user_id": self.user_id
+        }
+        await self.websocket.send(json.dumps(auth_message))
+        response = await self.websocket.recv()
+        data = json.loads(response)
+        if data['type'] == 'auth_response':
+            token = data['token']
+        else:
+            self.display_message("Authentication failed")
+            self.master.destroy()
 
     async def send_hello(self):
         global counter
@@ -149,13 +180,15 @@ class ChatGUI:
                 "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username, "user_id": self.user_id}, counter)
+            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username, "user_id": self.user_id}, counter),
+            "token": token
         }
         counter += 1
         await self.websocket.send(json.dumps(hello_message))
 
     async def send_chat(self, message):
         global counter
+        message = sanitize_message(message)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         chat_message = {
             "type": "signed_data",
@@ -167,13 +200,15 @@ class ChatGUI:
                 "timestamp": timestamp
             },
             "counter": counter,
-            "signature": sign_message({"type": "public_chat", "sender": self.username, "user_id": self.user_id, "message": message, "timestamp": timestamp}, counter)
+            "signature": sign_message({"type": "public_chat", "sender": self.username, "user_id": self.user_id, "message": message, "timestamp": timestamp}, counter),
+            "token": token
         }
         counter += 1
         await self.websocket.send(json.dumps(chat_message))
 
     async def send_private_chat(self, recipient, message):
         global counter
+        message = sanitize_message(message)
         private_chat_message = {
             "type": "signed_data",
             "data": {
@@ -184,7 +219,8 @@ class ChatGUI:
                 "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username, "user_id": self.user_id}, counter)
+            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username, "user_id": self.user_id}, counter),
+            "token": token
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
@@ -203,7 +239,8 @@ class ChatGUI:
                 "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id}, counter)
+            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id}, counter),
+            "token": token
         }
         counter += 1
         await self.websocket.send(json.dumps(file_transfer_message))
@@ -325,6 +362,7 @@ if __name__ == "__main__":
     root.withdraw()  # Hide the root window
     username = simpledialog.askstring("Username", "Enter your username:")
     if username:
+        username = sanitize_username(username)
         user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window
         chat_gui = ChatGUI(root, username, user_id)

@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from tkinter import scrolledtext, ttk, simpledialog, filedialog
 import webbrowser
 import signal
+import requests
 
 # Generate SSL/TLS certificates for the user
 def generate_user_certificates(username, user_id):
@@ -191,37 +192,82 @@ class ChatGUI:
         self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
-    async def send_file_transfer(self, recipient, file_url):
+    async def send_file_transfer(self, recipient, file_url, file_name):
         global counter
-        file_transfer_message = {
-            "type": "signed_data",
-            "data": {
-                "type": "file_transfer",
-                "recipient": recipient,
-                "file_url": file_url,
-                "sender": self.username,
-                "user_id": self.user_id
-            },
-            "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id}, counter)
-        }
-        counter += 1
-        await self.websocket.send(json.dumps(file_transfer_message))
-        self.display_message(f"File sent to {recipient}: {file_url}")  # Display the message on sender's GUI
+        
+        try:
+            file_transfer_message = {
+                "type": "signed_data",
+                "data": {
+                    "type": "file_transfer",
+                    "recipient": recipient,
+                    "file_url": file_url,
+                    "file_name": file_name,
+                    "sender": self.username,
+                    "user_id": self.user_id
+                },
+                "counter": counter,
+                "signature": sign_message({
+                    "type": "file_transfer",
+                    "recipient": recipient,
+                    "file_url": file_url,
+                    "file_name": file_name,
+                    "sender": self.username,
+                    "user_id": self.user_id
+                }, counter)
+            }
+
+            counter += 1
+
+            # Send the message via WebSocket
+            await self.websocket.send(json.dumps(file_transfer_message))
+
+            self.display_message(f"File sent to {recipient}: {file_url}")
+            
+        except Exception as e:
+            self.display_message(f"Failed to send file to {recipient}: {e}")
 
     async def listen_for_messages(self):
         try:
             while True:
                 message = await self.websocket.recv()
                 data = json.loads(message)
+                print(f"Received message: {data}") 
                 if data['type'] == 'chat_message':
                     self.display_message(data['message'])
                 elif data['type'] == 'user_list':
                     self.update_user_list(data['users'])
                 elif data['type'] == 'file_transfer':
-                    self.display_message(f"File received from {data['sender']}: {data['file_url']}", is_link=True)
+                    self.receive_file(data['file_url'], data['sender'], data['file_name'])
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
+        except Exception as e:
+            self.display_message(f"Error receiving message: {e}")
+            
+    def receive_file(self, file_url, sender, file_name):
+        try:
+            # get extension of the file
+            file_extension = file_name.split('.')[-1]
+            
+            file_path = filedialog.asksaveasfilename(defaultextension = file_extension, initialfile = "received_file." + file_extension)
+
+            if file_path:
+                # Download the file from the provided URL
+                response = requests.get(file_url)
+
+                if response.status_code == 200:
+                    # Save the downloaded file to the specified path
+                    with open(file_path, 'wb') as file:
+                        file.write(response.content)
+
+                    self.display_message(f"File received from {sender} and saved as {file_path}")
+                else:
+                    self.display_message(f"Failed to download file from {file_url}")
+            else:
+                self.display_message("File save operation was canceled.")
+
+        except Exception as e:
+            self.display_message(f"Error receiving file from {sender}: {e}")
 
     def send_message(self, event=None):
         message = self.msg_entry.get()
@@ -253,14 +299,23 @@ class ChatGUI:
             file_path = filedialog.askopenfilename()
             if file_path:
                 file_url = self.upload_file(file_path)
-                asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url), self.loop)
+                if file_url:
+                    file_name = os.path.basename(file_path)
+                    asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url, file_name), self.loop)
 
-    def upload_file(self, file_path):
-        # Simulate file upload and return a URL
-        file_name = os.path.basename(file_path)
-        file_url = f"http://localhost/files/{file_name}"
-        # In a real application, you would upload the file to a server and get the URL
-        return file_url
+    def upload_file(self, file_path):        
+        with open(file_path, 'rb') as file:
+            # Upload the file to the server
+            response = requests.post('http://localhost:5000/upload', files={'file': file})
+
+            if response.status_code == 200:
+                # Extract the file URL from the response
+                file_url = response.json()['url']
+                self.display_message(f"File uploaded: {file_path}, available at: {file_url}")
+                return file_url
+            else:
+                self.display_message(f"Failed to upload file: {response.json().get('error')}")
+                return None
 
     def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')

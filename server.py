@@ -9,10 +9,13 @@ from cryptography.hazmat.primitives import serialization, hashes
 from datetime import datetime
 import ssl
 import signal
-import secrets
+import re
 
 connected_clients = {}
-tokens = {}
+
+
+def sanitize_input(input_string):
+    return re.sub(r'[^\w\s]', '', input_string)
 
 # Generate SSL/TLS certificates if they don't exist
 def generate_ssl_certificates():
@@ -39,27 +42,14 @@ def cleanup():
 # Call the function to generate SSL/TLS certificates
 generate_ssl_certificates()
 
-def generate_token():
-    return secrets.token_hex(16)
-
 async def handle_client(websocket, path):
     global connected_clients
     try:
         async for message in websocket:
             data = json.loads(message)
-            if data['type'] == 'auth':
-                username = data['username']
-                user_id = data['user_id']
-                token = generate_token()
-                tokens[token] = {'username': username, 'user_id': user_id}
-                await websocket.send(json.dumps({'type': 'auth_response', 'token': token}))
-            elif data['type'] == 'signed_data':
-                token = data.get('token')
-                if token not in tokens:
-                    await websocket.send(json.dumps({'type': 'error', 'message': 'Invalid token'}))
-                    continue
+            if data['type'] == 'signed_data':
                 if data['data']['type'] == 'hello':
-                    username = data['data']['username']
+                    username = sanitize_input(data['data']['username'])
                     user_id = data['data']['user_id']
                     public_key_pem = data['data']['public_key']
                     public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
@@ -74,15 +64,17 @@ async def handle_client(websocket, path):
                 elif data['data']['type'] == 'public_chat':
                     await broadcast_message(data['data']['message'], data['data']['sender'])
                 elif data['data']['type'] == 'private_chat':
-                    recipient = data['data']['recipient']
-                    message = data['data']['message']
+                    recipient = sanitize_input(data['data']['recipient'])
+                    message = sanitize_input(data['data']['message'])
                     sender = data['data']['sender']
                     await send_private_message(recipient, message, sender)
                 elif data['data']['type'] == 'file_transfer':
-                    recipient = data['data']['recipient']
-                    file_content = data['data']['file_content']
+                    recipient = sanitize_input(data['data']['recipient'])
+                    file_url = data['data']['file_url']
                     sender = data['data']['sender']
-                    await send_file_transfer(recipient, file_content, sender)
+                    file_name = data['data']['file_name']
+                    await send_file_transfer(recipient, file_url, sender, file_name)
+                    print(f"File transfer from {sender} to {recipient} initiated")  # Generic log message            
                 elif data['data']['type'] == 'list_members':
                     await send_user_list(websocket)
     except websockets.ConnectionClosed:
@@ -118,7 +110,7 @@ async def send_private_message(recipient, message, sender):
     else:
         print(f"Recipient {recipient} not found")  # Debugging statement
 
-async def send_file_transfer(recipient, file_content, sender):
+async def send_file_transfer(recipient, file_url, sender, file_name):
     recipient_fingerprint = None
     for fp, client in connected_clients.items():
         if client['username'] == recipient:
@@ -128,9 +120,12 @@ async def send_file_transfer(recipient, file_content, sender):
     if recipient_fingerprint and recipient_fingerprint in connected_clients:
         await connected_clients[recipient_fingerprint]['websocket'].send(json.dumps({
             'type': 'file_transfer',
-            'file_content': file_content,
-            'sender': sender
+            'file_url': file_url,
+            'sender': sender,
+            'file_name': file_name
         }))
+    else:
+        print(f"Recipient {recipient} not found")  # Debugging statement
 
 async def send_user_list(websocket):
     users = [{"username": client['username'], "user_id": client['user_id']} for client in connected_clients.values()]

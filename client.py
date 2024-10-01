@@ -303,19 +303,44 @@ class ChatGUI:
                     file_name = os.path.basename(file_path)
                     asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url, file_name), self.loop)
 
-    def upload_file(self, file_path):        
-        with open(file_path, 'rb') as file:
-            # Upload the file to the server
-            response = requests.post('http://localhost:5000/upload', files={'file': file})
+    def upload_file(self, file_path):
+        try:
+            with open(file_path, 'rb') as file:
+                # Upload the file to the server
+                response = requests.post('http://localhost:5000/upload', files={'file': file})
 
-            if response.status_code == 200:
-                # Extract the file URL from the response
-                file_url = response.json()['url']
-                self.display_message(f"File uploaded: {file_path}, available at: {file_url}")
-                return file_url
-            else:
-                self.display_message(f"Failed to upload file: {response.json().get('error')}")
-                return None
+                if response.status_code == 200:
+                    try:
+                        file_url = response.json().get('url')
+                        if file_url:
+                            self.display_message(f"File uploaded: {file_path}, available at: {file_url}")
+                            return file_url
+                        else:
+                            # Handle the unexpected response structure
+                            self.display_message(f"Unexpected response structure: {response.json()}")
+                            return None
+                    # Handle JSON parsing errors
+                    except requests.exceptions.JSONDecodeError:
+                        self.display_message("Failed to parse JSON response")
+                        return None
+                else:
+                    try:
+                        # Try to get the error message from the response JSON
+                        error_message = response.json().get('error', 'Unknown error')
+                        self.display_message(f"Failed to upload file: {error_message}")
+                    except requests.exceptions.JSONDecodeError:
+                        # If the response isn't JSON (e.g., an HTML error page), just show the status code
+                        self.display_message(f"Failed to upload file: HTTP {response.status_code}")
+                    return None
+
+        except FileNotFoundError:
+            self.display_message(f"File not found: {file_path}")
+            return None
+
+        except requests.exceptions.RequestException as e:
+            # Catch network-related errors
+            self.display_message(f"Request failed: {e}")
+            return None
 
     def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')

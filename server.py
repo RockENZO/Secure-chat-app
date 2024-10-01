@@ -10,10 +10,50 @@ from datetime import datetime
 import ssl
 import signal
 import re
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+import threading
+import stat
+from werkzeug.serving import run_simple  # Import run_simple
 
 connected_clients = {}
 
+# Flask app setup
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Set permissions to 755 (rwxr-xr-x)
+os.chmod(UPLOAD_FOLDER, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                   stat.S_IRGRP | stat.S_IXGRP | 
+                   stat.S_IROTH | stat.S_IXOTH)
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(file_path)
+
+    # Return a URL that points to the uploaded file
+    return jsonify({"url": f"http://localhost:5001/files/{file.filename}"}), 200
+
+@app.route('/files/<filename>', methods=['GET'])
+def download_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+def run_flask():
+    run_simple('localhost', 5001, app, use_reloader=False, use_debugger=True)
+
+# WebSocket server setup
 def sanitize_input(input_string):
     return re.sub(r'[^\w\s]', '', input_string)
 
@@ -165,6 +205,10 @@ def signal_handler(signal, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
+
+# Run Flask server in a separate thread
+flask_thread = threading.Thread(target=run_flask)
+flask_thread.start()
 
 try:
     loop.run_until_complete(start_server)

@@ -409,6 +409,7 @@ if __name__ == "__main__":
     if username:
         user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window
+        root.geometry("800x400")
         chat_gui = ChatGUI(root, username, user_id)
         signal.signal(signal.SIGINT, signal_handler)
         root.mainloop()

@@ -309,7 +309,7 @@ class ChatGUI:
         try:
             with open(file_path, 'rb') as file:
                 # Upload the file to the server
-                response = requests.post('http://localhost:5000/upload', files={'file': file})
+                response = requests.post('http://localhost:5001/upload', files={'file': file})
 
                 if response.status_code == 200:
                     try:
@@ -331,7 +331,7 @@ class ChatGUI:
                         error_message = response.json().get('error', 'Unknown error')
                         self.display_message(f"Failed to upload file: {error_message}")
                     except requests.exceptions.JSONDecodeError:
-                        # If the response isn't JSON (e.g., an HTML error page), just show the status code
+                        # If the response isn't JSON, just display the HTTP status code
                         self.display_message(f"Failed to upload file: HTTP {response.status_code}")
                     return None
 

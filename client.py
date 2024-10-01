@@ -1,21 +1,21 @@
 import os
 import subprocess
+import tkinter as tk
 import asyncio
 import websockets
+import threading
+import ssl
 import json
 import base64
-import threading
-import signal
-import ssl
-import tkinter as tk
-from tkinter import scrolledtext, ttk, simpledialog, filedialog
+import uuid
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-import secrets
-import uuid
+from tkinter import scrolledtext, ttk, simpledialog, filedialog
+import webbrowser
+import signal
+import requests
 import re
-
 # Generate SSL/TLS certificates for the user
 def generate_user_certificates(username, user_id):
     cert_file = f"{username}_{user_id}_cert.pem"
@@ -29,7 +29,9 @@ def generate_user_certificates(username, user_id):
         print(f"SSL/TLS certificates generated for {username} with ID {user_id}.")
     return cert_file, key_file
 
-# Cleanup function to delete certificate and key files
+def sanitize_input(input_string):
+    return re.sub(r'[^\w\s]', '', input_string)
+
 def cleanup(username, user_id):
     cert_file = f"{username}_{user_id}_cert.pem"
     key_file = f"{username}_{user_id}_key.pem"
@@ -54,19 +56,6 @@ public_pem = public_key.public_bytes(
 
 # Counter for message signing
 counter = 0
-
-# Token for authentication
-token = None
-
-def sanitize_username(username):
-    # Allow only alphanumeric characters
-    sanitized_username = re.sub(r'[^a-zA-Z0-9]', '', username)
-    return sanitized_username
-
-def sanitize_message(message):
-    # Allow alphanumeric characters, spaces, and common punctuation
-    sanitized_message = re.sub(r'[^a-zA-Z0-9\s.,!?/;:()\'"-]', '', message)
-    return sanitized_message
 
 class ChatGUI:
     def __init__(self, master, username, user_id):
@@ -147,27 +136,10 @@ class ChatGUI:
         try:
             async with websockets.connect(uri, ssl=ssl_context) as websocket:
                 self.websocket = websocket
-                await self.authenticate()
                 await self.send_hello()
                 await self.listen_for_messages()
         except Exception as e:
             self.display_message(f"Error: {e}")
-
-    async def authenticate(self):
-        global token
-        auth_message = {
-            "type": "auth",
-            "username": self.username,
-            "user_id": self.user_id
-        }
-        await self.websocket.send(json.dumps(auth_message))
-        response = await self.websocket.recv()
-        data = json.loads(response)
-        if data['type'] == 'auth_response':
-            token = data['token']
-        else:
-            self.display_message("Authentication failed")
-            self.master.destroy()
 
     async def send_hello(self):
         global counter
@@ -180,15 +152,13 @@ class ChatGUI:
                 "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username, "user_id": self.user_id}, counter),
-            "token": token
+            "signature": sign_message({"type": "hello", "public_key": public_pem, "username": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(hello_message))
 
     async def send_chat(self, message):
         global counter
-        message = sanitize_message(message)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         chat_message = {
             "type": "signed_data",
@@ -200,15 +170,13 @@ class ChatGUI:
                 "timestamp": timestamp
             },
             "counter": counter,
-            "signature": sign_message({"type": "public_chat", "sender": self.username, "user_id": self.user_id, "message": message, "timestamp": timestamp}, counter),
-            "token": token
+            "signature": sign_message({"type": "public_chat", "sender": self.username, "user_id": self.user_id, "message": message, "timestamp": timestamp}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(chat_message))
 
     async def send_private_chat(self, recipient, message):
         global counter
-        message = sanitize_message(message)
         private_chat_message = {
             "type": "signed_data",
             "data": {
@@ -219,49 +187,92 @@ class ChatGUI:
                 "user_id": self.user_id
             },
             "counter": counter,
-            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username, "user_id": self.user_id}, counter),
-            "token": token
+            "signature": sign_message({"type": "private_chat", "recipient": recipient, "message": message, "sender": self.username, "user_id": self.user_id}, counter)
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
         self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
-    async def send_file_transfer(self, recipient, file_url):
+    async def send_file_transfer(self, recipient, file_url, file_name):
         global counter
-        file_transfer_message = {
-            "type": "signed_data",
-            "data": {
-                "type": "file_transfer",
-                "recipient": recipient,
-                "file_url": file_url,
-                "sender": self.username,
-                "user_id": self.user_id
-            },
-            "counter": counter,
-            "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id}, counter),
-            "token": token
-        }
-        counter += 1
-        await self.websocket.send(json.dumps(file_transfer_message))
-        self.display_message(f"File sent to {recipient}: {file_url}")  # Display the message on sender's GUI
+        
+        try:
+            file_transfer_message = {
+                "type": "signed_data",
+                "data": {
+                    "type": "file_transfer",
+                    "recipient": recipient,
+                    "file_url": file_url,
+                    "file_name": file_name,
+                    "sender": self.username,
+                    "user_id": self.user_id
+                },
+                "counter": counter,
+                "signature": sign_message({
+                    "type": "file_transfer",
+                    "recipient": recipient,
+                    "file_url": file_url,
+                    "file_name": file_name,
+                    "sender": self.username,
+                    "user_id": self.user_id
+                }, counter)
+            }
+
+            counter += 1
+
+            # Send the message via WebSocket
+            await self.websocket.send(json.dumps(file_transfer_message))
+
+            self.display_message(f"File sent to {recipient}: {file_url}")
+            
+        except Exception as e:
+            self.display_message(f"Failed to send file to {recipient}: {e}")
 
     async def listen_for_messages(self):
         try:
             while True:
                 message = await self.websocket.recv()
                 data = json.loads(message)
+                print(f"Received message: {data}") 
                 if data['type'] == 'chat_message':
                     self.display_message(data['message'])
                 elif data['type'] == 'user_list':
                     self.update_user_list(data['users'])
                 elif data['type'] == 'file_transfer':
-                    self.display_message(f"File received from {data['sender']}: {data['file_url']}", is_link=True)
+                    self.receive_file(data['file_url'], data['sender'], data['file_name'])
         except websockets.ConnectionClosed:
             self.display_message("Connection to the server closed")
+        except Exception as e:
+            self.display_message(f"Error receiving message: {e}")
+            
+    def receive_file(self, file_url, sender, file_name):
+        try:
+            # get extension of the file
+            file_extension = file_name.split('.')[-1]
+            
+            file_path = filedialog.asksaveasfilename(defaultextension = file_extension, initialfile = "received_file." + file_extension)
+
+            if file_path:
+                # Download the file from the provided URL
+                response = requests.get(file_url)
+
+                if response.status_code == 200:
+                    # Save the downloaded file to the specified path
+                    with open(file_path, 'wb') as file:
+                        file.write(response.content)
+
+                    self.display_message(f"File received from {sender} and saved as {file_path}")
+                else:
+                    self.display_message(f"Failed to download file from {file_url}")
+            else:
+                self.display_message("File save operation was canceled.")
+
+        except Exception as e:
+            self.display_message(f"Error receiving file from {sender}: {e}")
 
     def send_message(self, event=None):
-        message = self.msg_entry.get()
+        message = sanitize_input(self.msg_entry.get())
         if message:
             if self.message_type == "public":
                 asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
@@ -271,7 +282,7 @@ class ChatGUI:
 
     def toggle_message_type(self):
         if self.message_type == "public":
-            self.recipient = simpledialog.askstring("Private Message", "Enter recipient username:")
+            self.recipient = sanitize_input(simpledialog.askstring("Private Message", "Enter recipient username:"))
             if self.recipient:
                 self.message_type = "private"
                 self.private_button.config(text="Public")
@@ -290,14 +301,48 @@ class ChatGUI:
             file_path = filedialog.askopenfilename()
             if file_path:
                 file_url = self.upload_file(file_path)
-                asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url), self.loop)
+                if file_url:
+                    file_name = os.path.basename(file_path)
+                    asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url, file_name), self.loop)
 
     def upload_file(self, file_path):
-        # Simulate file upload and return a URL
-        file_name = os.path.basename(file_path)
-        file_url = f"http://localhost/files/{file_name}"
-        # In a real application, you would upload the file to a server and get the URL
-        return file_url
+        try:
+            with open(file_path, 'rb') as file:
+                # Upload the file to the server
+                response = requests.post('http://localhost:5000/upload', files={'file': file})
+
+                if response.status_code == 200:
+                    try:
+                        file_url = response.json().get('url')
+                        if file_url:
+                            self.display_message(f"File uploaded: {file_path}, available at: {file_url}")
+                            return file_url
+                        else:
+                            # Handle the unexpected response structure
+                            self.display_message(f"Unexpected response structure: {response.json()}")
+                            return None
+                    # Handle JSON parsing errors
+                    except requests.exceptions.JSONDecodeError:
+                        self.display_message("Failed to parse JSON response")
+                        return None
+                else:
+                    try:
+                        # Try to get the error message from the response JSON
+                        error_message = response.json().get('error', 'Unknown error')
+                        self.display_message(f"Failed to upload file: {error_message}")
+                    except requests.exceptions.JSONDecodeError:
+                        # If the response isn't JSON (e.g., an HTML error page), just show the status code
+                        self.display_message(f"Failed to upload file: HTTP {response.status_code}")
+                    return None
+
+        except FileNotFoundError:
+            self.display_message(f"File not found: {file_path}")
+            return None
+
+        except requests.exceptions.RequestException as e:
+            # Catch network-related errors
+            self.display_message(f"Request failed: {e}")
+            return None
 
     def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')
@@ -360,9 +405,8 @@ def signal_handler(signal, frame):
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Hide the root window
-    username = simpledialog.askstring("Username", "Enter your username:")
+    username = sanitize_input(simpledialog.askstring("Username", "Enter your username:"))
     if username:
-        username = sanitize_username(username)
         user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window
         chat_gui = ChatGUI(root, username, user_id)

@@ -16,11 +16,13 @@ First, install the required dependencies:
 - Third-party libraries:
   - `cryptography`: For cryptographic functions (RSA, padding, serialization, etc.)
   - `websockets`: For WebSocket communication
+  - `flask`: For the file server
+  - `flask-cors`: For handling CORS in the file server
 
 Run the following command to install the necessary third-party libraries:
 
 ```bash
-pip install cryptography websockets
+pip install cryptography websockets flask flask-cors
 ```
 - And then for the tkinter GUI:
   - For mac:

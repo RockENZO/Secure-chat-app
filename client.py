@@ -15,7 +15,7 @@ from tkinter import scrolledtext, ttk, simpledialog, filedialog
 import webbrowser
 import signal
 import requests
-
+import re
 # Generate SSL/TLS certificates for the user
 def generate_user_certificates(username, user_id):
     cert_file = f"{username}_{user_id}_cert.pem"
@@ -29,7 +29,9 @@ def generate_user_certificates(username, user_id):
         print(f"SSL/TLS certificates generated for {username} with ID {user_id}.")
     return cert_file, key_file
 
-# Cleanup function to delete certificate and key files
+def sanitize_input(input_string):
+    return re.sub(r'[^\w\s]', '', input_string)
+
 def cleanup(username, user_id):
     cert_file = f"{username}_{user_id}_cert.pem"
     key_file = f"{username}_{user_id}_key.pem"
@@ -270,7 +272,7 @@ class ChatGUI:
             self.display_message(f"Error receiving file from {sender}: {e}")
 
     def send_message(self, event=None):
-        message = self.msg_entry.get()
+        message = sanitize_input(self.msg_entry.get())
         if message:
             if self.message_type == "public":
                 asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
@@ -280,7 +282,7 @@ class ChatGUI:
 
     def toggle_message_type(self):
         if self.message_type == "public":
-            self.recipient = simpledialog.askstring("Private Message", "Enter recipient username:")
+            self.recipient = sanitize_input(simpledialog.askstring("Private Message", "Enter recipient username:"))
             if self.recipient:
                 self.message_type = "private"
                 self.private_button.config(text="Public")
@@ -403,7 +405,7 @@ def signal_handler(signal, frame):
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Hide the root window
-    username = simpledialog.askstring("Username", "Enter your username:")
+    username = sanitize_input(simpledialog.askstring("Username", "Enter your username:"))
     if username:
         user_id = str(uuid.uuid4())
         root.deiconify()  # Show the root window

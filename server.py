@@ -9,8 +9,13 @@ from cryptography.hazmat.primitives import serialization, hashes
 from datetime import datetime
 import ssl
 import signal
+import re
 
 connected_clients = {}
+
+
+def sanitize_input(input_string):
+    return re.sub(r'[^\w\s]', '', input_string)
 
 # Generate SSL/TLS certificates if they don't exist
 def generate_ssl_certificates():
@@ -44,7 +49,7 @@ async def handle_client(websocket, path):
             data = json.loads(message)
             if data['type'] == 'signed_data':
                 if data['data']['type'] == 'hello':
-                    username = data['data']['username']
+                    username = sanitize_input(data['data']['username'])
                     user_id = data['data']['user_id']
                     public_key_pem = data['data']['public_key']
                     public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
@@ -59,12 +64,12 @@ async def handle_client(websocket, path):
                 elif data['data']['type'] == 'public_chat':
                     await broadcast_message(data['data']['message'], data['data']['sender'])
                 elif data['data']['type'] == 'private_chat':
-                    recipient = data['data']['recipient']
-                    message = data['data']['message']
+                    recipient = sanitize_input(data['data']['recipient'])
+                    message = sanitize_input(data['data']['message'])
                     sender = data['data']['sender']
                     await send_private_message(recipient, message, sender)
                 elif data['data']['type'] == 'file_transfer':
-                    recipient = data['data']['recipient']
+                    recipient = sanitize_input(data['data']['recipient'])
                     file_url = data['data']['file_url']
                     sender = data['data']['sender']
                     file_name = data['data']['file_name']

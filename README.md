@@ -22,7 +22,7 @@ First, install the required dependencies:
 Run the following command to install the necessary third-party libraries:
 
 ```bash
-pip install cryptography websockets flask flask-cors
+pip install cryptography websockets flask flask-cors requests
 ```
 - And then for the tkinter GUI:
   - For mac:

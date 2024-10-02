@@ -274,11 +274,10 @@ class ChatGUI:
                     "recipient": recipient,
                     "file_url": file_url,
                     "sender": self.username,
-                    "user_id": self.user_id,
                     "file_name": file_name
                 },
                 "counter": counter,
-                "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id, "file_name": file_name}, counter)
+                "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "file_name": file_name}, counter)
             }
             counter += 1
             await self.websocket.send(json.dumps(file_transfer_message))
@@ -317,21 +316,43 @@ class ChatGUI:
         if message:
             if self.message_type == "public":
                 asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
-            else:
-                recipient = self.user_listbox.get(tk.ACTIVE)
-                if recipient:
-                    asyncio.run_coroutine_threadsafe(self.send_private_chat(recipient, message), self.loop)
+            elif self.message_type == "private" and self.recipient:
+                asyncio.run_coroutine_threadsafe(self.send_private_chat(self.recipient, message), self.loop)
             self.msg_entry.delete(0, tk.END)
 
     def toggle_message_type(self):
         if self.message_type == "public":
             self.message_type = "private"
-            self.recipient = simpledialog.askstring("Private Message", "Enter recipient username:")
             self.private_button.config(text="Public")
+            self.select_recipient()
         else:
             self.message_type = "public"
-            self.recipient = None
             self.private_button.config(text="Private")
+            self.display_message("Switched to public message mode.")
+
+    def select_recipient(self):
+        users = self.user_listbox.get(0, tk.END)
+        if not users:
+            self.display_message("No other users connected.")
+            return
+
+        recipient_selection_window = tk.Toplevel(self.master)
+        recipient_selection_window.title("Select Recipient")
+
+        tk.Label(recipient_selection_window, text="Select recipient for private message:").pack(pady=10)
+
+        recipient_var = tk.StringVar(recipient_selection_window)
+        recipient_var.set(users[0])  # Set default value
+
+        recipient_dropdown = ttk.Combobox(recipient_selection_window, textvariable=recipient_var, values=users)
+        recipient_dropdown.pack(pady=10)
+
+        def set_recipient():
+            self.recipient = recipient_var.get()
+            self.display_message(f"Switched to private message mode. Recipient: {self.recipient}")
+            recipient_selection_window.destroy()
+
+        tk.Button(recipient_selection_window, text="Select", command=set_recipient).pack(pady=10)
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
@@ -343,7 +364,7 @@ class ChatGUI:
     async def upload_file(self, file_path, recipient):
         try:
             with open(file_path, 'rb') as f:
-                response = requests.post("http://localhost:5001/upload", files={'file': f})
+                response = requests.post('http://localhost:5001/upload', files={'file': f})
                 response.raise_for_status()
                 file_url = response.json()['url']
                 file_name = os.path.basename(file_path)
@@ -356,8 +377,9 @@ class ChatGUI:
     def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')
         if is_link:
-            self.chat_display.insert(tk.END, message + "\n", ("link",))
-            self.chat_display.tag_config("link", foreground="blue", underline=True)
+            self.chat_display.insert(tk.END, message + "\n", ('link',))
+            self.chat_display.tag_config('link', foreground="blue", underline=True)
+            self.chat_display.tag_bind('link', '<Button-1>', lambda e: webbrowser.open(message.split()[-1]))
         else:
             self.chat_display.insert(tk.END, message + "\n")
         self.chat_display.configure(state='disabled')
@@ -366,13 +388,18 @@ class ChatGUI:
     def update_user_list(self, users):
         self.user_listbox.delete(0, tk.END)
         for user in users:
-            self.user_listbox.insert(tk.END, user['username'])
+            if user['username'] != self.username:
+                self.user_listbox.insert(tk.END, user['username'])
         self.highlight_recipient()
 
     def highlight_recipient(self):
         if self.recipient:
-            index = self.user_listbox.get(0, tk.END).index(self.recipient)
-            self.user_listbox.selection_set(index)
+            try:
+                index = self.user_listbox.get(0, tk.END).index(self.recipient)
+                self.user_listbox.selection_set(index)
+                self.user_listbox.activate(index)
+            except ValueError:
+                self.recipient = None
 
     def log_out(self):
         cleanup(self.username, self.user_id)

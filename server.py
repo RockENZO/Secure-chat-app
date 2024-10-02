@@ -141,9 +141,17 @@ def load_ssl_context(password):
     with open("server.key", 'rb') as f:
         encrypted_private_key = f.read()
     private_key = decrypt_private_key(encrypted_private_key, password)
-    with open("server.key", 'wb') as f:
+    
+    # Write the decrypted private key to a temporary file
+    temp_key_file = "temp_server.key"
+    with open(temp_key_file, 'wb') as f:
         f.write(private_key)
-    ssl_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+    
+    ssl_context.load_cert_chain(certfile="server.crt", keyfile=temp_key_file)
+    
+    # Remove the temporary file after loading the SSL context
+    os.remove(temp_key_file)
+    
     return ssl_context
 
 ssl_context = load_ssl_context("your_password_here")

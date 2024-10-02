@@ -1,25 +1,24 @@
 import os
 import subprocess
-import tkinter as tk
 import asyncio
 import websockets
-import threading
-import ssl
 import json
 import base64
-import uuid
-from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding as sym_padding
 from cryptography.hazmat.backends import default_backend
-from tkinter import scrolledtext, ttk, simpledialog, filedialog
-import webbrowser
+from datetime import datetime
+import ssl
 import signal
-import requests
 import re
+import tkinter as tk
+from tkinter import scrolledtext, ttk, simpledialog, filedialog
+import threading
+import uuid
+import requests
 
 # Utility functions for encryption and decryption
 def encrypt_private_key(private_key, password):
@@ -84,9 +83,17 @@ def load_user_ssl_context(username, user_id, password):
     with open(key_file, 'rb') as f:
         encrypted_private_key = f.read()
     private_key = decrypt_private_key(encrypted_private_key, password)
-    with open(key_file, 'wb') as f:
+    
+    # Write the decrypted private key to a temporary file
+    temp_key_file = f"temp_{username}_{user_id}_key.pem"
+    with open(temp_key_file, 'wb') as f:
         f.write(private_key)
-    ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+    
+    ssl_context.load_cert_chain(certfile=cert_file, keyfile=temp_key_file)
+    
+    # Remove the temporary file after loading the SSL context
+    os.remove(temp_key_file)
+    
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
     return ssl_context
@@ -267,10 +274,11 @@ class ChatGUI:
                     "recipient": recipient,
                     "file_url": file_url,
                     "sender": self.username,
+                    "user_id": self.user_id,
                     "file_name": file_name
                 },
                 "counter": counter,
-                "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "file_name": file_name}, counter)
+                "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "user_id": self.user_id, "file_name": file_name}, counter)
             }
             counter += 1
             await self.websocket.send(json.dumps(file_transfer_message))
@@ -283,10 +291,10 @@ class ChatGUI:
                 data = json.loads(message)
                 if data['type'] == 'chat_message':
                     self.display_message(data['message'])
-                elif data['type'] == 'file_transfer':
-                    self.receive_file(data['file_url'], data['sender'], data['file_name'])
                 elif data['type'] == 'user_list':
                     self.update_user_list(data['users'])
+                elif data['type'] == 'file_transfer':
+                    self.receive_file(data['file_url'], data['sender'], data['file_name'])
         except websockets.ConnectionClosed:
             self.display_message("Connection closed.")
         except Exception as e:
@@ -296,9 +304,11 @@ class ChatGUI:
         try:
             response = requests.get(file_url)
             response.raise_for_status()
-            with open(file_name, 'wb') as f:
-                f.write(response.content)
-            self.display_message(f"Received file '{file_name}' from {sender}", is_link=True)
+            file_path = filedialog.asksaveasfilename(defaultextension=".bin", initialfile=file_name)
+            if file_path:
+                with open(file_path, 'wb') as f:
+                    f.write(response.content)
+                self.display_message(f"File received from {sender}: {file_name}", is_link=True)
         except Exception as e:
             self.display_message(f"Error receiving file: {e}")
 
@@ -307,8 +317,10 @@ class ChatGUI:
         if message:
             if self.message_type == "public":
                 asyncio.run_coroutine_threadsafe(self.send_chat(message), self.loop)
-            elif self.message_type == "private" and self.recipient:
-                asyncio.run_coroutine_threadsafe(self.send_private_chat(self.recipient, message), self.loop)
+            else:
+                recipient = self.user_listbox.get(tk.ACTIVE)
+                if recipient:
+                    asyncio.run_coroutine_threadsafe(self.send_private_chat(recipient, message), self.loop)
             self.msg_entry.delete(0, tk.END)
 
     def toggle_message_type(self):
@@ -332,10 +344,10 @@ class ChatGUI:
         try:
             with open(file_path, 'rb') as f:
                 response = requests.post("http://localhost:5001/upload", files={'file': f})
-            response.raise_for_status()
-            file_url = response.json()['url']
-            file_name = os.path.basename(file_path)
-            await self.send_file_transfer(recipient, file_url, file_name)
+                response.raise_for_status()
+                file_url = response.json()['url']
+                file_name = os.path.basename(file_path)
+                await self.send_file_transfer(recipient, file_url, file_name)
         except FileNotFoundError:
             self.display_message("File not found.")
         except requests.exceptions.RequestException as e:
@@ -346,7 +358,6 @@ class ChatGUI:
         if is_link:
             self.chat_display.insert(tk.END, message + "\n", ("link",))
             self.chat_display.tag_config("link", foreground="blue", underline=True)
-            self.chat_display.tag_bind("link", "<Button-1>", lambda e: webbrowser.open(message.split()[-1]))
         else:
             self.chat_display.insert(tk.END, message + "\n")
         self.chat_display.configure(state='disabled')
@@ -355,15 +366,13 @@ class ChatGUI:
     def update_user_list(self, users):
         self.user_listbox.delete(0, tk.END)
         for user in users:
-            self.user_listbox.insert(tk.END, f"{user['username']} (ID: {user['user_id']})")
+            self.user_listbox.insert(tk.END, user['username'])
         self.highlight_recipient()
 
     def highlight_recipient(self):
         if self.recipient:
-            for i in range(self.user_listbox.size()):
-                if self.recipient in self.user_listbox.get(i):
-                    self.user_listbox.selection_set(i)
-                    break
+            index = self.user_listbox.get(0, tk.END).index(self.recipient)
+            self.user_listbox.selection_set(index)
 
     def log_out(self):
         cleanup(self.username, self.user_id)

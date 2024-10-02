@@ -50,8 +50,7 @@ def upload_file():
     
     # Limit file size to 15MB
     app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
-    
-    file.seek(0)  # Reset file pointer after reading
+
     file.save(file_path)
 
     # Return a URL that points to the uploaded file

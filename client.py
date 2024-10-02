@@ -11,13 +11,56 @@ import uuid
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding as sym_padding
+from cryptography.hazmat.backends import default_backend
 from tkinter import scrolledtext, ttk, simpledialog, filedialog
 import webbrowser
 import signal
 import requests
 import re
+
+# Utility functions for encryption and decryption
+def encrypt_private_key(private_key, password):
+    salt = os.urandom(16)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = kdf.derive(password.encode())
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    padder = sym_padding.PKCS7(algorithms.AES.block_size).padder()
+    padded_data = padder.update(private_key) + padder.finalize()
+    encrypted_private_key = encryptor.update(padded_data) + encryptor.finalize()
+    return salt + iv + encrypted_private_key
+
+def decrypt_private_key(encrypted_private_key, password):
+    salt = encrypted_private_key[:16]
+    iv = encrypted_private_key[16:32]
+    encrypted_data = encrypted_private_key[32:]
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = kdf.derive(password.encode())
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    decryptor = cipher.decryptor()
+    decrypted_padded_data = decryptor.update(encrypted_data) + decryptor.finalize()
+    unpadder = sym_padding.PKCS7(algorithms.AES.block_size).unpadder()
+    private_key = unpadder.update(decrypted_padded_data) + unpadder.finalize()
+    return private_key
+
 # Generate SSL/TLS certificates for the user
-def generate_user_certificates(username, user_id):
+def generate_user_certificates(username, user_id, password):
     cert_file = f"{username}_{user_id}_cert.pem"
     key_file = f"{username}_{user_id}_key.pem"
     if not os.path.exists(cert_file) or not os.path.exists(key_file):
@@ -26,8 +69,27 @@ def generate_user_certificates(username, user_id):
             "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
             f"-subj", f"/CN={username}/UID={user_id}"
         ])
-        print(f"SSL/TLS certificates generated for {username} with ID {user_id}.")
+        with open(key_file, 'rb') as f:
+            private_key = f.read()
+        encrypted_private_key = encrypt_private_key(private_key, password)
+        with open(key_file, 'wb') as f:
+            f.write(encrypted_private_key)
+        print(f"SSL/TLS certificates generated for {username} with ID {user_id} and private key encrypted.")
     return cert_file, key_file
+
+def load_user_ssl_context(username, user_id, password):
+    cert_file = f"{username}_{user_id}_cert.pem"
+    key_file = f"{username}_{user_id}_key.pem"
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    with open(key_file, 'rb') as f:
+        encrypted_private_key = f.read()
+    private_key = decrypt_private_key(encrypted_private_key, password)
+    with open(key_file, 'wb') as f:
+        f.write(private_key)
+    ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    return ssl_context
 
 def sanitize_input(input_string):
     return re.sub(r'[^\w\s]', '', input_string)
@@ -123,15 +185,16 @@ class ChatGUI:
 
     def start_loop(self):
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.chat_client())
+        self.loop.run_forever()
 
-    async def chat_client(self):
+    def start_chat_client(self):
+        password = simpledialog.askstring("Password", "Enter your password:", show='*')
+        asyncio.run_coroutine_threadsafe(self.chat_client(password), self.loop)
+
+    async def chat_client(self, password):
         uri = "wss://localhost:8766"
-        cert_file, key_file = generate_user_certificates(self.username, self.user_id)
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_context.load_cert_chain(certfile=cert_file, keyfile=key_file)
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+        cert_file, key_file = generate_user_certificates(self.username, self.user_id, password)
+        ssl_context = load_user_ssl_context(self.username, self.user_id, password)
 
         try:
             async with websockets.connect(uri, ssl=ssl_context) as websocket:
@@ -196,7 +259,6 @@ class ChatGUI:
 
     async def send_file_transfer(self, recipient, file_url, file_name):
         global counter
-        
         try:
             file_transfer_message = {
                 "type": "signed_data",
@@ -204,72 +266,41 @@ class ChatGUI:
                     "type": "file_transfer",
                     "recipient": recipient,
                     "file_url": file_url,
-                    "file_name": file_name,
                     "sender": self.username,
-                    "user_id": self.user_id
+                    "file_name": file_name
                 },
                 "counter": counter,
-                "signature": sign_message({
-                    "type": "file_transfer",
-                    "recipient": recipient,
-                    "file_url": file_url,
-                    "file_name": file_name,
-                    "sender": self.username,
-                    "user_id": self.user_id
-                }, counter)
+                "signature": sign_message({"type": "file_transfer", "recipient": recipient, "file_url": file_url, "sender": self.username, "file_name": file_name}, counter)
             }
-
             counter += 1
-
-            # Send the message via WebSocket
             await self.websocket.send(json.dumps(file_transfer_message))
-
-            self.display_message(f"File sent to {recipient}: {file_url}")
-            
         except Exception as e:
-            self.display_message(f"Failed to send file to {recipient}: {e}")
+            self.display_message(f"Error: {e}")
 
     async def listen_for_messages(self):
         try:
-            while True:
-                message = await self.websocket.recv()
+            async for message in self.websocket:
                 data = json.loads(message)
-                print(f"Received message: {data}") 
                 if data['type'] == 'chat_message':
                     self.display_message(data['message'])
-                elif data['type'] == 'user_list':
-                    self.update_user_list(data['users'])
                 elif data['type'] == 'file_transfer':
                     self.receive_file(data['file_url'], data['sender'], data['file_name'])
+                elif data['type'] == 'user_list':
+                    self.update_user_list(data['users'])
         except websockets.ConnectionClosed:
-            self.display_message("Connection to the server closed")
+            self.display_message("Connection closed.")
         except Exception as e:
-            self.display_message(f"Error receiving message: {e}")
-            
+            self.display_message(f"Error: {e}")
+
     def receive_file(self, file_url, sender, file_name):
         try:
-            # get extension of the file
-            file_extension = file_name.split('.')[-1]
-            
-            file_path = filedialog.asksaveasfilename(defaultextension = file_extension, initialfile = "received_file." + file_extension)
-
-            if file_path:
-                # Download the file from the provided URL
-                response = requests.get(file_url)
-
-                if response.status_code == 200:
-                    # Save the downloaded file to the specified path
-                    with open(file_path, 'wb') as file:
-                        file.write(response.content)
-
-                    self.display_message(f"File received from {sender} and saved as {file_path}")
-                else:
-                    self.display_message(f"Failed to download file from {file_url}")
-            else:
-                self.display_message("File save operation was canceled.")
-
+            response = requests.get(file_url)
+            response.raise_for_status()
+            with open(file_name, 'wb') as f:
+                f.write(response.content)
+            self.display_message(f"Received file '{file_name}' from {sender}", is_link=True)
         except Exception as e:
-            self.display_message(f"Error receiving file from {sender}: {e}")
+            self.display_message(f"Error receiving file: {e}")
 
     def send_message(self, event=None):
         message = sanitize_input(self.msg_entry.get())
@@ -282,91 +313,56 @@ class ChatGUI:
 
     def toggle_message_type(self):
         if self.message_type == "public":
-            self.recipient = sanitize_input(simpledialog.askstring("Private Message", "Enter recipient username:"))
-            if self.recipient:
-                self.message_type = "private"
-                self.private_button.config(text="Public")
-                self.username_label.config(text=f"Username: {self.username} (ID: {self.user_id}) (Private to: {self.recipient})")
-                self.highlight_recipient()
+            self.message_type = "private"
+            self.recipient = simpledialog.askstring("Private Message", "Enter recipient username:")
+            self.private_button.config(text="Public")
         else:
             self.message_type = "public"
             self.recipient = None
             self.private_button.config(text="Private")
-            self.username_label.config(text=f"Username: {self.username} (ID: {self.user_id})")
-            self.user_listbox.selection_clear(0, tk.END)
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
         if recipient:
             file_path = filedialog.askopenfilename()
             if file_path:
-                file_url = self.upload_file(file_path)
-                if file_url:
-                    file_name = os.path.basename(file_path)
-                    asyncio.run_coroutine_threadsafe(self.send_file_transfer(recipient, file_url, file_name), self.loop)
+                asyncio.run_coroutine_threadsafe(self.upload_file(file_path, recipient), self.loop)
 
-    def upload_file(self, file_path):
+    async def upload_file(self, file_path, recipient):
         try:
-            with open(file_path, 'rb') as file:
-                # Upload the file to the server
-                response = requests.post('http://localhost:5001/upload', files={'file': file})
-
-                if response.status_code == 200:
-                    try:
-                        file_url = response.json().get('url')
-                        if file_url:
-                            self.display_message(f"File uploaded: {file_path}, available at: {file_url}")
-                            return file_url
-                        else:
-                            # Handle the unexpected response structure
-                            self.display_message(f"Unexpected response structure: {response.json()}")
-                            return None
-                    # Handle JSON parsing errors
-                    except requests.exceptions.JSONDecodeError:
-                        self.display_message("Failed to parse JSON response")
-                        return None
-                else:
-                    try:
-                        # Try to get the error message from the response JSON
-                        error_message = response.json().get('error', 'Unknown error')
-                        self.display_message(f"Failed to upload file: {error_message}")
-                    except requests.exceptions.JSONDecodeError:
-                        # If the response isn't JSON, just display the HTTP status code
-                        self.display_message(f"Failed to upload file: HTTP {response.status_code}")
-                    return None
-
+            with open(file_path, 'rb') as f:
+                response = requests.post("http://localhost:5001/upload", files={'file': f})
+            response.raise_for_status()
+            file_url = response.json()['url']
+            file_name = os.path.basename(file_path)
+            await self.send_file_transfer(recipient, file_url, file_name)
         except FileNotFoundError:
-            self.display_message(f"File not found: {file_path}")
-            return None
-
+            self.display_message("File not found.")
         except requests.exceptions.RequestException as e:
-            # Catch network-related errors
-            self.display_message(f"Request failed: {e}")
-            return None
+            self.display_message(f"Error uploading file: {e}")
 
     def display_message(self, message, is_link=False):
         self.chat_display.configure(state='normal')
         if is_link:
-            self.chat_display.insert(tk.END, message + '\n', ('link',))
-            self.chat_display.tag_config('link', foreground='blue', underline=True)
-            self.chat_display.tag_bind('link', '<Button-1>', lambda e: webbrowser.open(message.split()[-1]))
+            self.chat_display.insert(tk.END, message + "\n", ("link",))
+            self.chat_display.tag_config("link", foreground="blue", underline=True)
+            self.chat_display.tag_bind("link", "<Button-1>", lambda e: webbrowser.open(message.split()[-1]))
         else:
-            self.chat_display.insert(tk.END, message + '\n')
+            self.chat_display.insert(tk.END, message + "\n")
         self.chat_display.configure(state='disabled')
         self.chat_display.see(tk.END)
 
     def update_user_list(self, users):
         self.user_listbox.delete(0, tk.END)
         for user in users:
-            self.user_listbox.insert(tk.END, user)
+            self.user_listbox.insert(tk.END, f"{user['username']} (ID: {user['user_id']})")
         self.highlight_recipient()
 
     def highlight_recipient(self):
         if self.recipient:
             for i in range(self.user_listbox.size()):
-                if self.user_listbox.get(i) == self.recipient:
+                if self.recipient in self.user_listbox.get(i):
                     self.user_listbox.selection_set(i)
-                    self.user_listbox.see(i)
                     break
 
     def log_out(self):
@@ -412,6 +408,7 @@ if __name__ == "__main__":
         root.geometry("800x400")
         chat_gui = ChatGUI(root, username, user_id)
         signal.signal(signal.SIGINT, signal_handler)
+        chat_gui.start_chat_client()  # Start the chat client
         root.mainloop()
     else:
         print("Username is required to start the chat.")

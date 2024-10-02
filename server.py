@@ -6,6 +6,10 @@ import json
 import base64
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding as sym_padding
+from cryptography.hazmat.backends import default_backend
 from datetime import datetime
 import ssl
 import signal
@@ -65,8 +69,45 @@ def run_flask():
 def sanitize_input(input_string):
     return re.sub(r'[^\w\s]', '', input_string)
 
+def encrypt_private_key(private_key, password):
+    salt = os.urandom(16)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = kdf.derive(password.encode())
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    padder = sym_padding.PKCS7(algorithms.AES.block_size).padder()
+    padded_data = padder.update(private_key) + padder.finalize()
+    encrypted_private_key = encryptor.update(padded_data) + encryptor.finalize()
+    return salt + iv + encrypted_private_key
+
+def decrypt_private_key(encrypted_private_key, password):
+    salt = encrypted_private_key[:16]
+    iv = encrypted_private_key[16:32]
+    encrypted_data = encrypted_private_key[32:]
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = kdf.derive(password.encode())
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    decryptor = cipher.decryptor()
+    decrypted_padded_data = decryptor.update(encrypted_data) + decryptor.finalize()
+    unpadder = sym_padding.PKCS7(algorithms.AES.block_size).unpadder()
+    private_key = unpadder.update(decrypted_padded_data) + unpadder.finalize()
+    return private_key
+
 # Generate SSL/TLS certificates if they don't exist
-def generate_ssl_certificates():
+def generate_ssl_certificates(password):
     cert_file = "server.crt"
     key_file = "server.key"
     if not os.path.exists(cert_file) or not os.path.exists(key_file):
@@ -75,7 +116,12 @@ def generate_ssl_certificates():
             "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
             "-subj", "/CN=localhost"
         ])
-        print("SSL/TLS certificates generated.")
+        with open(key_file, 'rb') as f:
+            private_key = f.read()
+        encrypted_private_key = encrypt_private_key(private_key, password)
+        with open(key_file, 'wb') as f:
+            f.write(encrypted_private_key)
+        print("SSL/TLS certificates generated and private key encrypted.")
 
 # Cleanup function to delete server certificate and key files
 def cleanup():
@@ -88,7 +134,19 @@ def cleanup():
     print("SSL/TLS certificates removed.")
 
 # Call the function to generate SSL/TLS certificates
-generate_ssl_certificates()
+generate_ssl_certificates("your_password_here")
+
+def load_ssl_context(password):
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    with open("server.key", 'rb') as f:
+        encrypted_private_key = f.read()
+    private_key = decrypt_private_key(encrypted_private_key, password)
+    with open("server.key", 'wb') as f:
+        f.write(private_key)
+    ssl_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+    return ssl_context
+
+ssl_context = load_ssl_context("your_password_here")
 
 async def handle_client(websocket, path):
     global connected_clients
@@ -198,9 +256,6 @@ def get_fingerprint(public_key):
     digest = hashes.Hash(hashes.SHA256())
     digest.update(public_bytes)
     return base64.b64encode(digest.finalize()).decode('utf-8')
-
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
 
 start_server = websockets.serve(handle_client, "localhost", 8766, ssl=ssl_context)
 

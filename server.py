@@ -40,11 +40,19 @@ def upload_file():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
     
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    # Validate file name
+    filename = sanitize_input(file.filename)
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    
+    # Limit file size to 10MB
+    if len(file.read()) > 15 * 1024 * 1024:
+        return jsonify({"error": "File larger than 15MB, please compress the file for secuirty purpose"}), 413
+    
+    file.seek(0)  # Reset file pointer after reading
     file.save(file_path)
 
     # Return a URL that points to the uploaded file
-    return jsonify({"url": f"http://localhost:5001/files/{file.filename}"}), 200
+    return jsonify({"url": f"http://localhost:5001/files/{filename}"}), 200
 
 @app.route('/files/<filename>', methods=['GET'])
 def download_file(filename):

@@ -16,6 +16,7 @@ exceptiongroup==1.2.2
 executing==2.1.0
 Flask==3.0.3
 Flask-Bcrypt==1.0.1
+Flask-Cors==5.0.0
 gyp==0.1
 httplib2==0.20.2
 idna==3.10

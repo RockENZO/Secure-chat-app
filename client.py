@@ -19,6 +19,7 @@ from tkinter import scrolledtext, ttk, simpledialog, filedialog
 import threading
 import uuid
 import requests
+import webbrowser
 
 # Utility functions for encryption and decryption
 def encrypt_private_key(private_key, password):
@@ -134,6 +135,8 @@ class ChatGUI:
         self.message_type = "public"  # Track the message type
         self.recipient = None  # Track the recipient for private messages
         master.title("Secure Chat Client")
+        
+        master.minsize(width=400, height=500)
 
         # Create a PanedWindow
         self.paned_window = ttk.PanedWindow(master, orient=tk.HORIZONTAL)
@@ -261,7 +264,7 @@ class ChatGUI:
         }
         counter += 1
         await self.websocket.send(json.dumps(private_chat_message))
-        self.display_message(f"Your Private message:\" {message} \"is sent to {recipient}")  # Display the message on sender's GUI
+        self.display_message(f"[Private] {self.username}: {message}")
         print(f"Sent private message to {recipient}: {message}")  # Debugging statement
 
     async def send_file_transfer(self, recipient, file_url, file_name):
@@ -281,6 +284,7 @@ class ChatGUI:
             }
             counter += 1
             await self.websocket.send(json.dumps(file_transfer_message))
+            self.display_message(f"File sent to {recipient}: {file_name}", is_link=True)
         except Exception as e:
             self.display_message(f"Error: {e}")
 
@@ -356,7 +360,13 @@ class ChatGUI:
 
     def send_file_command(self):
         recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
-        if recipient:
+        
+        # Check if the recipient is the sender or not in the user list
+        if recipient == self.username:
+            self.display_message("You cannot send a file to yourself.")
+        elif recipient not in self.user_listbox.get(0, tk.END):
+            self.display_message("Recipient not found.")
+        elif recipient:
             file_path = filedialog.askopenfilename()
             if file_path:
                 asyncio.run_coroutine_threadsafe(self.upload_file(file_path, recipient), self.loop)

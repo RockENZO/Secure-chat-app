@@ -49,8 +49,7 @@ def upload_file():
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     
     # Limit file size to 15MB
-    if len(file.read()) > 15 * 1024 * 1024:
-        return jsonify({"error": "File larger than 15MB, please compress the file for security purpose"}), 413
+    app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
     
     file.seek(0)  # Reset file pointer after reading
     file.save(file_path)

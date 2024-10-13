@@ -32,18 +32,19 @@ def encrypt_private_key(private_key, password):
         backend=default_backend()
     )
     key = kdf.derive(password.encode())
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    iv = os.urandom(12)  # GCM requires a 12-byte IV
+    cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
     encryptor = cipher.encryptor()
     padder = sym_padding.PKCS7(algorithms.AES.block_size).padder()
     padded_data = padder.update(private_key) + padder.finalize()
     encrypted_private_key = encryptor.update(padded_data) + encryptor.finalize()
-    return salt + iv + encrypted_private_key
+    return salt + iv + encryptor.tag + encrypted_private_key
 
 def decrypt_private_key(encrypted_private_key, password):
     salt = encrypted_private_key[:16]
-    iv = encrypted_private_key[16:32]
-    encrypted_data = encrypted_private_key[32:]
+    iv = encrypted_private_key[16:28]
+    tag = encrypted_private_key[28:44]
+    encrypted_data = encrypted_private_key[44:]
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -52,7 +53,7 @@ def decrypt_private_key(encrypted_private_key, password):
         backend=default_backend()
     )
     key = kdf.derive(password.encode())
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
     decryptor = cipher.decryptor()
     decrypted_padded_data = decryptor.update(encrypted_data) + decryptor.finalize()
     unpadder = sym_padding.PKCS7(algorithms.AES.block_size).unpadder()

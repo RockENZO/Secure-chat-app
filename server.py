@@ -131,7 +131,7 @@ def generate_ssl_certificates(password):
             "openssl", "req", "-x509", "-newkey", "rsa:4096",
             "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
             "-subj", "/CN=localhost"
-        ])
+        ],check=True)
         with open(key_file, 'rb') as f:
             private_key = f.read()
         encrypted_private_key = encrypt_private_key(private_key, password)

@@ -68,7 +68,7 @@ def generate_user_certificates(username, user_id, password):
             "openssl", "req", "-x509", "-newkey", "rsa:4096",
             "-keyout", key_file, "-out", cert_file, "-days", "365", "-nodes",
             f"-subj", f"/CN={username}/UID={user_id}"
-        ])
+        ],check=True)
         with open(key_file, 'rb') as f:
             private_key = f.read()
         encrypted_private_key = encrypt_private_key(private_key, password)

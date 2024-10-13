@@ -306,7 +306,7 @@ class ChatGUI:
     def receive_file(self, file_url, sender, file_name):
         if tk.messagebox.askyesno("File Transfer", f"{sender} wants to send you a file: {file_name}. Do you want to download it?"):
             try:
-                response = requests.get(file_url)
+                response = requests.get(file_url, timeout=5)
                 response.raise_for_status()
                 file_path = filedialog.asksaveasfilename(defaultextension=".bin", initialfile=file_name)
                 if file_path:
@@ -314,14 +314,14 @@ class ChatGUI:
                         f.write(response.content)
                     self.display_message(f"File received from {sender}: {file_name}", is_link=True)
                     # Notify the server to delete the file after download
-                    requests.post(f"{file_url}/delete")
+                    requests.post(f"{file_url}/delete", timeout=5)
             except Exception as e:
                 self.display_message(f"Error receiving file: {e}")
                 # Notify the server to delete the file if there is an error
-                requests.post(f"{file_url}/delete")
+                requests.post(f"{file_url}/delete", timeout=5)
         else:
             # Notify the server to delete the file if the user denies the download
-            requests.post(f"{file_url}/delete")
+            requests.post(f"{file_url}/delete", timeout=5)
 
     def send_message(self, event=None):
         message = sanitize_input(self.msg_entry.get())
@@ -398,7 +398,7 @@ class ChatGUI:
     async def upload_file(self, file_path, recipient):
         try:
             with open(file_path, 'rb') as f:
-                response = requests.post('http://localhost:5001/upload', files={'file': f})
+                response = requests.post('http://localhost:5001/upload', files={'file': f}, timeout=5)
                 response.raise_for_status()
                 file_url = response.json()['url']
                 file_name = os.path.basename(file_path)

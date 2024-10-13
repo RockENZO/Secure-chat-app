@@ -313,8 +313,15 @@ class ChatGUI:
                     with open(file_path, 'wb') as f:
                         f.write(response.content)
                     self.display_message(f"File received from {sender}: {file_name}", is_link=True)
+                    # Notify the server to delete the file after download
+                    requests.post(f"{file_url}/delete")
             except Exception as e:
                 self.display_message(f"Error receiving file: {e}")
+                # Notify the server to delete the file if there is an error
+                requests.post(f"{file_url}/delete")
+        else:
+            # Notify the server to delete the file if the user denies the download
+            requests.post(f"{file_url}/delete")
 
     def send_message(self, event=None):
         message = sanitize_input(self.msg_entry.get())

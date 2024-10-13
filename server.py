@@ -58,7 +58,25 @@ def upload_file():
 
 @app.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    response = send_from_directory(UPLOAD_FOLDER, filename)
+    
+    # Clean up the file after sending it
+    @response.call_on_close
+    def cleanup_file():
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    
+    return response
+
+@app.route('/files/<filename>/delete', methods=['POST'])
+def delete_file(filename):
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return jsonify({"status": "success", "message": "File deleted"}), 200
+    else:
+        return jsonify({"status": "error", "message": "File not found"}), 404
 
 def run_flask():
     run_simple('localhost', 5001, app, use_reloader=False, use_debugger=True)

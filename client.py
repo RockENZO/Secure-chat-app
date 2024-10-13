@@ -304,16 +304,17 @@ class ChatGUI:
             self.display_message(f"Error: {e}")
 
     def receive_file(self, file_url, sender, file_name):
-        try:
-            response = requests.get(file_url)
-            response.raise_for_status()
-            file_path = filedialog.asksaveasfilename(defaultextension=".bin", initialfile=file_name)
-            if file_path:
-                with open(file_path, 'wb') as f:
-                    f.write(response.content)
-                self.display_message(f"File received from {sender}: {file_name}", is_link=True)
-        except Exception as e:
-            self.display_message(f"Error receiving file: {e}")
+        if tk.messagebox.askyesno("File Transfer", f"{sender} wants to send you a file: {file_name}. Do you want to download it?"):
+            try:
+                response = requests.get(file_url)
+                response.raise_for_status()
+                file_path = filedialog.asksaveasfilename(defaultextension=".bin", initialfile=file_name)
+                if file_path:
+                    with open(file_path, 'wb') as f:
+                        f.write(response.content)
+                    self.display_message(f"File received from {sender}: {file_name}", is_link=True)
+            except Exception as e:
+                self.display_message(f"Error receiving file: {e}")
 
     def send_message(self, event=None):
         message = sanitize_input(self.msg_entry.get())
@@ -359,17 +360,33 @@ class ChatGUI:
         tk.Button(recipient_selection_window, text="Select", command=set_recipient).pack(pady=10)
 
     def send_file_command(self):
-        recipient = simpledialog.askstring("File Transfer", "Enter recipient username:")
-        
-        # Check if the recipient is the sender or not in the user list
-        if recipient == self.username:
-            self.display_message("You cannot send a file to yourself.")
-        elif recipient not in self.user_listbox.get(0, tk.END):
-            self.display_message("Recipient not found.")
-        elif recipient:
-            file_path = filedialog.askopenfilename()
-            if file_path:
-                asyncio.run_coroutine_threadsafe(self.upload_file(file_path, recipient), self.loop)
+        users = self.user_listbox.get(0, tk.END)
+        if not users:
+            self.display_message("No other users connected.")
+            return
+
+        recipient_selection_window = tk.Toplevel(self.master)
+        recipient_selection_window.title("Select Recipient")
+
+        tk.Label(recipient_selection_window, text="Select recipient for file transfer:").pack(pady=10)
+
+        recipient_var = tk.StringVar(recipient_selection_window)
+        recipient_var.set(users[0])  # Set default value
+
+        recipient_dropdown = ttk.Combobox(recipient_selection_window, textvariable=recipient_var, values=users)
+        recipient_dropdown.pack(pady=10)
+
+        def set_recipient():
+            recipient = recipient_var.get()
+            if recipient == self.username:
+                self.display_message("You cannot send a file to yourself.")
+            else:
+                file_path = filedialog.askopenfilename()
+                if file_path:
+                    asyncio.run_coroutine_threadsafe(self.upload_file(file_path, recipient), self.loop)
+            recipient_selection_window.destroy()
+
+        tk.Button(recipient_selection_window, text="Select", command=set_recipient).pack(pady=10)
 
     async def upload_file(self, file_path, recipient):
         try:

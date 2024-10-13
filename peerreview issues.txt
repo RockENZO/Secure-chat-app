@@ -1,0 +1,14 @@
+Possible Vulnerabilities:
+In the file transfer system, when a file is sent, the recipient is automatically prompted to download the
+file. While the user needs to manually accept the file, this could still open a potential attack vector if a
+malicious payload is set to run immediately after downloading.
+
+Another possible vulnerability with the file server is that files are permanently stored in the “uploads”
+folder on the server once they are sent to a user. A carefully crafted malicious file can be planted on
+the server to gain access to data, such as private and public keys, which are created and stored in the
+root directory of the server. The server’s source code can also potentially be modified using this
+method to implement additional backdoors.
+
+It is also possible to have two separate users with the same username, but with a unique client ID,
+although they cannot send messages to each other. However, as the client does not show each user’s
+user ID, it is impossible to verify which user sent the message.

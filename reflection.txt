@@ -1,0 +1,15 @@
+Phase 4: Reflection and Feedback (Week 11)
+
+Objective: Reflect on the development process and learn from the feedback received.
+
+Approach:
+
+Write a reflective commentary discussing your protocol's standards, implementation challenges, thoughts on the integrated backdoors, and anticipated difficulty detecting them.  As guidance, do not write more than 2000 words (~4 pages single-spaced A4).  Your code, proof of concept, and screenshots can go to a set of appendices, which do not count into those 2000 words/4 pages. 
+
+The reflective commentary should contain the following information:
+
+Your reflection on the standardised protocol.  Even if you had to comply with the agreed implementation (in order to achieve interoperability), you might have had a different view.  Here is the space to comment and give your thoughts on what worked and what didn't work. 
+Describe and submit your backdoor free version of the code.  Explain design choices in the implementation.  Demonstrate how your code runs (by chatting with your own implementation or by chatting with other implementations).  Discuss lessons learned.  This can also include any bugs reported by other groups. 
+Explain what backdoors/vulnerabilities you added.  What your thoughts and objectives were.  Explain and demonstrate how to exploit your backdoor. 
+Evaluate the feedback you received from other groups.  Did they find your backdoors?  Did they find other problems in your code?  Was the report useful feedback?  
+For what groups did you provide feedback (name the group and group members).  What feedback did you provide to other groups?  What challenges did you face?  How did you overcome or approach those challenges (e.g., did you talk to the other groups)? 

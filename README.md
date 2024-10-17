@@ -1,8 +1,9 @@
 # OLAF/Neighbourhood protocol modified
 
 ## Group 
-Members:
-
+- Ge Wang | a1880714
+- Yong Yue Beh | a1843874
+- Liew Yi Hui | a1907230
 
 ## Setting up virtual environment
 ```bash

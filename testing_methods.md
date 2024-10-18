@@ -1,5 +1,5 @@
 # Testing Secure Chat Application
-
+##Logging In
 ### Entering Username
 **Test Case:**\
 User inputs their username in the login window.\

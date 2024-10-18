@@ -21,6 +21,12 @@ import uuid
 import requests
 import webbrowser
 
+# Group 11
+## Ge Wang | a1880714
+## Yong Yue Beh | a1843874
+## Liew Yi Hui | a1907230
+## Mustafa Jamale | a1863981
+
 # Utility functions for encryption and decryption
 def encrypt_private_key(private_key, password):
     salt = os.urandom(16)

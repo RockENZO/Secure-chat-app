@@ -4,6 +4,12 @@ import os
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
+# Group 11
+## Ge Wang | a1880714
+## Yong Yue Beh | a1843874
+## Liew Yi Hui | a1907230
+## Mustafa Jamale | a1863981
+
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
 
 def generate_rsa_keypair():

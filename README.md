@@ -4,6 +4,7 @@
 - Ge Wang | a1880714
 - Yong Yue Beh | a1843874
 - Liew Yi Hui | a1907230
+- Mustafa Jamale | a1863981
 
 ## Setting up virtual environment
 ```bash
@@ -109,6 +110,14 @@ First, install the required dependencies using the following command:
 
 ```bash
 pip install -r requirements.txt
+```
+
+If requirements.txt fails to install the necessary dependencies, please install them manually using the following commands:
+```bash
+pip install websockets
+pip install cryptography
+pip install Flask
+pip install flask-cors
 ```
 
 - And then for the tkinter GUI:

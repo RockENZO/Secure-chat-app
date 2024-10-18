@@ -20,6 +20,12 @@ import threading
 import stat
 from werkzeug.serving import run_simple  # Import run_simple
 
+# Group 11
+## Ge Wang | a1880714
+## Yong Yue Beh | a1843874
+## Liew Yi Hui | a1907230
+## Mustafa Jamale | a1863981
+
 connected_clients = {}
 
 # Flask app setup

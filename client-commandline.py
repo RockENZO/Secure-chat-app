@@ -11,6 +11,12 @@ import tkinter as tk
 from tkinter import scrolledtext, ttk
 import threading  # Added this import
 
+# Group 11
+## Ge Wang | a1880714
+## Yong Yue Beh | a1843874
+## Liew Yi Hui | a1907230
+## Mustafa Jamale | a1863981
+
 # Generate RSA key pair
 private_key, public_key = generate_rsa_keypair()
 

@@ -7,6 +7,12 @@ from encryption import generate_rsa_keypair, encrypt_message, decrypt_message
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 
+# Group 11
+## Ge Wang | a1880714
+## Yong Yue Beh | a1843874
+## Liew Yi Hui | a1907230
+## Mustafa Jamale | a1863981
+
 clients = {}
 public_keys = {}
 counters = {}

@@ -4,6 +4,12 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import base64
 import os
 
+# Group 11
+## Ge Wang | a1880714
+## Yong Yue Beh | a1843874
+## Liew Yi Hui | a1907230
+## Mustafa Jamale | a1863981
+
 def generate_rsa_keypair():
     private_key = rsa.generate_private_key(
         public_exponent=65537,

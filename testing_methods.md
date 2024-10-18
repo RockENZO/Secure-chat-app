@@ -2,6 +2,7 @@
 
 ## Logging in
 1. Entering username.
+
 **Test Case:**
 
     - user inputs their username in the login window.

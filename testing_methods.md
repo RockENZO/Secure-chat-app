@@ -2,22 +2,24 @@
 
 ## Logging in
 1. Entering username.
-**Test Case: **
+**Test Case:**
+
     - user inputs their username in the login window.
 **Expected outcome:**
+
     - Username is accepted if valid (non-empty, alphanumeric).
     - Error handling for when no username is entered.
     - If no username is entered, the window should close prompting user to start client side         server again.
 
-2. Entering password.
-**Test Case: **
+3. Entering password.
+**Test Case:**
 User inputs a password to authenticate.
 **Expected outcome:**
     - users unable to access chat app
     - Error handling for no password entered.
     - input sanitisation
 
-3. Multiple client joining.
+4. Multiple client joining.
 **Test Case:**
 Multiple clients connect to the server at the same time.
 **Expected outcome:**
@@ -28,10 +30,11 @@ Multiple clients connect to the server at the same time.
 1. Public messaging.
     - A user sends a public message to all connected users.
 **Expected outcome:**
+
     - The message should be displayed on all connected clients' chat windows
     - Input sanitisation to prevent malicous actors
 2. Private messaging
-**Test Case: **
+**Test Case:**
 A user sends a private message to another user.
 **Expected outcome:**
     - The message should only appear in the chat window of the sender and receiver.

@@ -44,11 +44,50 @@ Verify that messages are properly encrypted before transmission and decrypted up
 **Expected outcome:**\
     - All messages must be encrypted using RSA for private keys and AES for session keys.\
     - If decryption fails, show: "Message could not be decrypted. Please try again."
+## File Uploads
+**Test Case:**\
+    - Users upload files via the chat interface.\
+**Expected outcome:**\
+    - Files are uploaded successfully and "saved on the server" {not sure on this part}
+    - Users recive confermation message as to wheather they are willing to acppect the file from       a user or not.\
+    - if the file size exceeeds the limit it will prooced to cancel the file upload.\
+## Downloading Files
+**Test Case:**\
+    - Users download files shared in the chat.
+**Expected outcome:**\
+    - Files are downloaded securely without corruption.
+    - Reciver recives a conferation message once a file is accepted
+##  Encryption and Certificate Management
+**Test Case:**\
+    - Ensure certificates are validated upon connection.
+**Expected outcome:**\
+    - Connections should be established only if certificates are trusted.
+## RSA Key Pair Generation and Storage
+**Test Case:**\
+    - Verify that RSA key pairs are correctly generated and stored.
+**Expected outcome:**\
+    - Keys should be stored securely in the user's system.
+    - The application must retrieve and use the correct keys for encryption and decryption.
 
+## Server-to-Server Communication
+like not 100% sure what teh test case adn expected out should would love so help with this part
 **Test Case:**\
 **Expected outcome:**\
 
+## Encrypted Server Messages
+**Test Case:**\
+    - Verify that server messages are encrypted before transmission.
+**Expected outcome:**\
+All server-to-server messages must follow the encryption protocol using AES.
 
+## Handling Disconnected Clients
+**Test Case:**\
+
+**Expected outcome:**\
+
+
+## Summary 
+The testing plan for the secure chat application ensures robust functionality, security, and performance. Key areas include user authentication, messaging, file handling, encryption, and server communication. Through this comprehensive error handling and edge case testing, the platform maintains stability across various usage scenarios. This robust approach ensures reliable performance and seamless user experience while using our chat app.
 
 
 

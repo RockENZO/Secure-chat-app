@@ -314,6 +314,13 @@ class ChatGUI:
         if tk.messagebox.askyesno("File Transfer", f"{sender} wants to send you a file: {file_name}. Do you want to download it?"):
             try:
                 response = requests.get(file_url, timeout=5)
+                
+                # check if file is a valid file type
+                if not file_name.endswith(('.txt', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx')):
+                    self.display_message(f"File received from {sender}: {file_name} is invalid file type.")
+                    requests.post(f"{file_url}/delete", timeout=5)
+                    return
+                
                 response.raise_for_status()
                 file_path = filedialog.asksaveasfilename(defaultextension=".bin", initialfile=file_name)
                 if file_path:
@@ -409,7 +416,15 @@ class ChatGUI:
                 response.raise_for_status()
                 file_url = response.json()['url']
                 file_name = os.path.basename(file_path)
-                await self.send_file_transfer(recipient, file_url, file_name)
+                
+                # send only valid file type
+                if file_name.endswith(('.txt', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx')):
+                    await self.send_file_transfer(recipient, file_url, file_name)
+                    
+                else:
+                    self.display_message(f"Invalid file type. Please send only text, image, pdf, doc, ppt, xls files.")
+                    requests.post(f"{file_url}/delete", timeout=5)
+                    
         except FileNotFoundError:
             self.display_message("File not found.")
         except requests.exceptions.RequestException as e:

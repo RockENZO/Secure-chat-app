@@ -51,10 +51,14 @@ Verify that messages are properly encrypted before transmission and decrypted up
     - 
 **Test Case:**
 **Expected outcome:**
+
+If requirements.txt fails to install the necessary dependencies, please install them manually using the following commands:
+```bash
 pip install websockets
 pip install cryptography
 pip install Flask
 pip install flask-cors
+```
 
 
 

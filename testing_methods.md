@@ -51,4 +51,11 @@ Verify that messages are properly encrypted before transmission and decrypted up
     - 
 **Test Case:**
 **Expected outcome:**
+pip install websockets
+pip install cryptography
+pip install Flask
+pip install flask-cors
+
+
+
 

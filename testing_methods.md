@@ -79,12 +79,23 @@ like not 100% sure what teh test case adn expected out should would love so help
     - Verify that server messages are encrypted before transmission.
 **Expected outcome:**\
 All server-to-server messages must follow the encryption protocol using AES.
-
+## Error handling and edge cases
 ## Handling Disconnected Clients
 **Test Case:**\
-
+    - Test how the application behaves when a client disconnects unexpectedly.
 **Expected outcome:**\
-
+    - The disconnected user should be removed from the user list.
+    - Message sent to a disconnected user will return the following text "No other users               connected".
+## Testing High Load and Performance
+**Test Case:**\
+    - Simulate multiple users connecting and sending messages and uploading files simultaneously.
+**Expected outcome:**\
+    - The system should handle high loads without crashing or slowing down.
+## Preventing Replay Attacks
+**Test Case:**\
+    - Test whether the application detects and prevents message replay attacks.
+**Expected outcome:**\
+    - The system should reject any duplicate messages with the same counter value.
 
 ## Summary 
 The testing plan for the secure chat application ensures robust functionality, security, and performance. Key areas include user authentication, messaging, file handling, encryption, and server communication. Through this comprehensive error handling and edge case testing, the platform maintains stability across various usage scenarios. This robust approach ensures reliable performance and seamless user experience while using our chat app.

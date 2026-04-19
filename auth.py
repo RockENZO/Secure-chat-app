@@ -10,7 +10,9 @@ from cryptography.hazmat.primitives import serialization
 ## Liew Yi Hui | a1907230
 ## Mustafa Jamale | a1863981
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable must be set")
 
 def generate_rsa_keypair():
     private_key = rsa.generate_private_key(
